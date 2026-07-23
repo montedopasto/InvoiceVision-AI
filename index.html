@@ -1,1 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
 
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>InvoiceVision AI</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+<div id="app">
+
+    <header class="topbar">
+
+        <div>
+
+            <h1>InvoiceVision AI</h1>
+
+            <p>
+                Gestão Inteligente de Faturas Pendentes
+            </p>
+
+        </div>
+
+        <div class="status">
+
+            <span class="status-dot"></span>
+
+            <span>Online</span>
+
+        </div>
+
+    </header>
+
+    <main>
+
+        <section id="importSection" class="card">
+
+            <h2>Importar CSV</h2>
+
+            <div id="dropZone">
+
+                <div class="uploadIcon">📄</div>
+
+                <h3>Arraste aqui o ficheiro CSV</h3>
+
+                <p>ou clique para selecionar</p>
+
+                <input
+                    type="file"
+                    id="csvFile"
+                    accept=".csv"
+                    hidden>
+
+                <button id="selectFileBtn">
+
+                    Selecionar ficheiro
+
+                </button>
+
+            </div>
+
+            <div id="lastImport">
+
+                <strong>Última importação</strong>
+
+                <p>Sem importações.</p>
+
+            </div>
+
+        </section>
+
+        <section id="analysisSection" class="card">
+
+            <h2>Pré-análise</h2>
+
+            <div id="analysisContent">
+
+                À espera de um ficheiro CSV...
+
+            </div>
+
+            <button
+                id="confirmImportBtn"
+                disabled>
+
+                Confirmar Importação
+
+            </button>
+
+        </section>
+
+    </main>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+
+</html>
