@@ -11,7 +11,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet"
+>
 
 <link rel="stylesheet" href="style.css">
 
@@ -19,92 +22,1042 @@
 
 <body>
 
+<div id="mobileOverlay" class="mobile-overlay"></div>
+
 <div id="app">
 
-    <header class="topbar">
+    <aside id="sidebar" class="sidebar">
 
-        <div>
+        <div class="sidebar-header">
 
-            <h1>InvoiceVision AI</h1>
+            <div class="brand">
+
+                <div class="brand-icon">
+
+                    <i data-lucide="scan-line"></i>
+
+                </div>
+
+                <div class="brand-copy">
+
+                    <strong>
+                        InvoiceVision
+                    </strong>
+
+                    <span>
+                        AI Finance
+                    </span>
+
+                </div>
+
+            </div>
+
+            <button
+                id="closeSidebarBtn"
+                class="icon-btn sidebar-close-btn"
+                type="button"
+                aria-label="Fechar menu"
+            >
+
+                <i data-lucide="x"></i>
+
+            </button>
+
+        </div>
+
+        <nav class="sidebar-nav">
+
+            <button
+                class="nav-item active"
+                type="button"
+                data-page="dashboard"
+            >
+
+                <i data-lucide="layout-dashboard"></i>
+
+                <span>
+                    Dashboard
+                </span>
+
+            </button>
+
+            <button
+                class="nav-item"
+                type="button"
+                data-page="faturas"
+            >
+
+                <i data-lucide="receipt-text"></i>
+
+                <span>
+                    Faturas
+                </span>
+
+            </button>
+
+            <button
+                class="nav-item"
+                type="button"
+                data-page="clientes"
+            >
+
+                <i data-lucide="users"></i>
+
+                <span>
+                    Clientes
+                </span>
+
+            </button>
+
+            <button
+                class="nav-item"
+                type="button"
+                data-page="historico"
+            >
+
+                <i data-lucide="history"></i>
+
+                <span>
+                    Histórico
+                </span>
+
+            </button>
+
+            <button
+                class="nav-item"
+                type="button"
+                data-page="ai"
+            >
+
+                <i data-lucide="sparkles"></i>
+
+                <span>
+                    AI Intelligence
+                </span>
+
+                <span class="nav-badge">
+                    AI
+                </span>
+
+            </button>
+
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+
+        <div class="sidebar-import-card">
+
+            <div class="sidebar-import-icon">
+
+                <i data-lucide="file-up"></i>
+
+            </div>
+
+            <strong>
+                Atualizar dados
+            </strong>
 
             <p>
-                Gestão Inteligente de Faturas Pendentes
+                Importe o ficheiro CSV mais recente.
             </p>
 
+            <button
+                id="sidebarImportBtn"
+                class="primary-btn sidebar-import-btn"
+                type="button"
+            >
+
+                <i data-lucide="upload"></i>
+
+                <span>
+                    Nova Importação
+                </span>
+
+            </button>
+
         </div>
 
-        <div class="status">
+        <div class="sidebar-footer">
 
-            <span class="status-dot"></span>
+            <div class="status">
 
-            <span>Online</span>
+                <span class="status-dot"></span>
+
+                <span>
+                    Online
+                </span>
+
+            </div>
+
+            <span class="version">
+                v1.0
+            </span>
 
         </div>
 
-    </header>
+    </aside>
 
-    <main>
+    <div class="app-shell">
 
-        <section id="importSection" class="card">
+        <header class="topbar">
 
-            <h2>Importar CSV</h2>
+            <div class="topbar-left">
 
-            <div id="dropZone">
+                <button
+                    id="openSidebarBtn"
+                    class="icon-btn mobile-menu-btn"
+                    type="button"
+                    aria-label="Abrir menu"
+                >
 
-                <div class="uploadIcon">📄</div>
+                    <i data-lucide="menu"></i>
 
-                <h3>Arraste aqui o ficheiro CSV</h3>
+                </button>
 
-                <p>ou clique para selecionar</p>
+                <div>
 
-                <input
-                    type="file"
-                    id="csvFile"
-                    accept=".csv"
-                    hidden>
+                    <div class="breadcrumb">
+                        InvoiceVision AI
+                    </div>
 
-                <button id="selectFileBtn">
+                    <h1 id="pageTitle">
+                        Dashboard
+                    </h1>
 
-                    Selecionar ficheiro
+                </div>
+
+            </div>
+
+            <div class="topbar-actions">
+
+                <button
+                    id="globalSearchBtn"
+                    class="search-trigger"
+                    type="button"
+                >
+
+                    <i data-lucide="search"></i>
+
+                    <span>
+                        Procurar cliente ou fatura...
+                    </span>
+
+                    <kbd>
+                        Ctrl K
+                    </kbd>
+
+                </button>
+
+                <button
+                    id="themeToggleBtn"
+                    class="icon-btn"
+                    type="button"
+                    aria-label="Alternar modo de cor"
+                >
+
+                    <i
+                        id="themeToggleIcon"
+                        data-lucide="moon"
+                    ></i>
+
+                </button>
+
+                <button
+                    id="headerImportBtn"
+                    class="primary-btn header-import-btn"
+                    type="button"
+                >
+
+                    <i data-lucide="upload"></i>
+
+                    <span>
+                        Nova Importação
+                    </span>
 
                 </button>
 
             </div>
 
-            <div id="lastImport">
+        </header>
 
-                <strong>Última importação</strong>
+        <main class="main-content">
 
-                <p>Sem importações.</p>
+            <section
+                id="page-dashboard"
+                class="app-page active"
+                data-title="Dashboard"
+            >
 
-            </div>
+                <div class="page-heading">
 
-        </section>
+                    <div>
 
-        <section id="analysisSection" class="card">
+                        <span class="eyebrow">
+                            Visão geral
+                        </span>
 
-            <h2>Pré-análise</h2>
+                        <h2>
+                            Controlo inteligente de faturas
+                        </h2>
 
-            <div id="analysisContent">
+                        <p>
+                            Analise valores pendentes, clientes e evolução das importações.
+                        </p>
 
-                À espera de um ficheiro CSV...
+                    </div>
+
+                    <div
+                        id="dashboardLastImport"
+                        class="last-update-pill"
+                    >
+
+                        <i data-lucide="clock-3"></i>
+
+                        <span>
+                            Sem importações nesta sessão
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <div class="kpi-grid">
+
+                    <article class="kpi-card">
+
+                        <div class="kpi-card-header">
+
+                            <div class="kpi-icon emerald">
+
+                                <i data-lucide="users"></i>
+
+                            </div>
+
+                            <span class="kpi-label">
+                                Clientes
+                            </span>
+
+                        </div>
+
+                        <strong
+                            id="kpiClientes"
+                            class="kpi-value"
+                        >
+                            —
+                        </strong>
+
+                        <span class="kpi-description">
+                            Clientes com faturas pendentes
+                        </span>
+
+                    </article>
+
+                    <article class="kpi-card">
+
+                        <div class="kpi-card-header">
+
+                            <div class="kpi-icon blue">
+
+                                <i data-lucide="receipt"></i>
+
+                            </div>
+
+                            <span class="kpi-label">
+                                Faturas
+                            </span>
+
+                        </div>
+
+                        <strong
+                            id="kpiFaturas"
+                            class="kpi-value"
+                        >
+                            —
+                        </strong>
+
+                        <span class="kpi-description">
+                            Total de documentos pendentes
+                        </span>
+
+                    </article>
+
+                    <article class="kpi-card">
+
+                        <div class="kpi-card-header">
+
+                            <div class="kpi-icon violet">
+
+                                <i data-lucide="banknote"></i>
+
+                            </div>
+
+                            <span class="kpi-label">
+                                Valor pendente
+                            </span>
+
+                        </div>
+
+                        <strong
+                            id="kpiValorPendente"
+                            class="kpi-value"
+                        >
+                            —
+                        </strong>
+
+                        <span class="kpi-description">
+                            Soma de todos os valores pendentes
+                        </span>
+
+                    </article>
+
+                    <article class="kpi-card">
+
+                        <div class="kpi-card-header">
+
+                            <div class="kpi-icon amber">
+
+                                <i data-lucide="triangle-alert"></i>
+
+                            </div>
+
+                            <span class="kpi-label">
+                                Faturas vencidas
+                            </span>
+
+                        </div>
+
+                        <strong
+                            id="kpiVencidas"
+                            class="kpi-value"
+                        >
+                            —
+                        </strong>
+
+                        <span class="kpi-description">
+                            Documentos que exigem atenção
+                        </span>
+
+                    </article>
+
+                </div>
+
+                <div class="dashboard-grid">
+
+                    <article class="panel panel-large">
+
+                        <div class="panel-header">
+
+                            <div>
+
+                                <span class="panel-eyebrow">
+                                    Evolução
+                                </span>
+
+                                <h3>
+                                    Valor pendente
+                                </h3>
+
+                            </div>
+
+                            <button
+                                class="panel-action"
+                                type="button"
+                                data-page-link="historico"
+                            >
+
+                                Ver histórico
+
+                                <i data-lucide="arrow-up-right"></i>
+
+                            </button>
+
+                        </div>
+
+                        <div class="empty-visual">
+
+                            <div class="empty-visual-icon">
+
+                                <i data-lucide="chart-no-axes-combined"></i>
+
+                            </div>
+
+                            <strong>
+                                O gráfico será apresentado aqui
+                            </strong>
+
+                            <p>
+                                Ficará disponível quando ligarmos os dados do histórico ao Dashboard.
+                            </p>
+
+                        </div>
+
+                    </article>
+
+                    <article class="panel">
+
+                        <div class="panel-header">
+
+                            <div>
+
+                                <span class="panel-eyebrow">
+                                    Prioridades
+                                </span>
+
+                                <h3>
+                                    Centro de Alertas
+                                </h3>
+
+                            </div>
+
+                            <div class="panel-icon">
+
+                                <i data-lucide="bell-ring"></i>
+
+                            </div>
+
+                        </div>
+
+                        <div class="alert-list">
+
+                            <div class="alert-item neutral">
+
+                                <div class="alert-marker"></div>
+
+                                <div>
+
+                                    <strong>
+                                        Aguardamos os dados
+                                    </strong>
+
+                                    <p>
+                                        Os alertas serão calculados quando ligarmos os dados do Dashboard.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </article>
+
+                </div>
+
+                <div class="dashboard-grid secondary-grid">
+
+                    <article class="panel">
+
+                        <div class="panel-header">
+
+                            <div>
+
+                                <span class="panel-eyebrow">
+                                    Inteligência
+                                </span>
+
+                                <h3>
+                                    AI Insights
+                                </h3>
+
+                            </div>
+
+                            <div class="panel-icon ai-icon">
+
+                                <i data-lucide="sparkles"></i>
+
+                            </div>
+
+                        </div>
+
+                        <div class="insight-placeholder">
+
+                            <i data-lucide="brain-circuit"></i>
+
+                            <p>
+                                Aqui aparecerão conclusões automáticas sobre concentração de dívida, aumentos e reduções.
+                            </p>
+
+                        </div>
+
+                    </article>
+
+                    <article class="panel">
+
+                        <div class="panel-header">
+
+                            <div>
+
+                                <span class="panel-eyebrow">
+                                    Ranking
+                                </span>
+
+                                <h3>
+                                    Top Clientes
+                                </h3>
+
+                            </div>
+
+                            <button
+                                class="panel-action"
+                                type="button"
+                                data-page-link="clientes"
+                            >
+
+                                Ver clientes
+
+                                <i data-lucide="arrow-up-right"></i>
+
+                            </button>
+
+                        </div>
+
+                        <div class="table-placeholder">
+
+                            <div class="table-placeholder-row"></div>
+                            <div class="table-placeholder-row"></div>
+                            <div class="table-placeholder-row"></div>
+                            <div class="table-placeholder-row"></div>
+
+                        </div>
+
+                    </article>
+
+                </div>
+
+            </section>
+
+            <section
+                id="page-faturas"
+                class="app-page"
+                data-title="Faturas"
+            >
+
+                <div class="module-placeholder">
+
+                    <div class="module-placeholder-icon">
+
+                        <i data-lucide="receipt-text"></i>
+
+                    </div>
+
+                    <span class="eyebrow">
+                        Módulo em preparação
+                    </span>
+
+                    <h2>
+                        Faturas
+                    </h2>
+
+                    <p>
+                        Este módulo terá pesquisa, filtros, ordenação, detalhe da fatura e exportação.
+                    </p>
+
+                </div>
+
+            </section>
+
+            <section
+                id="page-clientes"
+                class="app-page"
+                data-title="Clientes"
+            >
+
+                <div class="module-placeholder">
+
+                    <div class="module-placeholder-icon">
+
+                        <i data-lucide="users-round"></i>
+
+                    </div>
+
+                    <span class="eyebrow">
+                        Módulo em preparação
+                    </span>
+
+                    <h2>
+                        Clientes
+                    </h2>
+
+                    <p>
+                        Aqui ficará o ranking de clientes, valores pendentes e histórico individual.
+                    </p>
+
+                </div>
+
+            </section>
+
+            <section
+                id="page-historico"
+                class="app-page"
+                data-title="Histórico"
+            >
+
+                <div class="module-placeholder">
+
+                    <div class="module-placeholder-icon">
+
+                        <i data-lucide="history"></i>
+
+                    </div>
+
+                    <span class="eyebrow">
+                        Módulo em preparação
+                    </span>
+
+                    <h2>
+                        Histórico
+                    </h2>
+
+                    <p>
+                        Este módulo mostrará todas as importações e as diferenças entre períodos.
+                    </p>
+
+                </div>
+
+            </section>
+
+            <section
+                id="page-ai"
+                class="app-page"
+                data-title="AI Intelligence"
+            >
+
+                <div class="module-placeholder">
+
+                    <div class="module-placeholder-icon ai-placeholder-icon">
+
+                        <i data-lucide="brain-circuit"></i>
+
+                    </div>
+
+                    <span class="eyebrow">
+                        Motor de análise
+                    </span>
+
+                    <h2>
+                        AI Intelligence
+                    </h2>
+
+                    <p>
+                        Aqui ficarão as tendências, alertas, concentrações e respostas automáticas sobre os dados.
+                    </p>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+</div>
+
+<div
+    id="importModal"
+    class="modal"
+    aria-hidden="true"
+>
+
+    <div
+        class="modal-backdrop"
+        data-close-modal="true"
+    ></div>
+
+    <div
+        class="modal-dialog import-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="importModalTitle"
+    >
+
+        <div class="modal-header">
+
+            <div>
+
+                <span class="eyebrow">
+                    Atualização de dados
+                </span>
+
+                <h2 id="importModalTitle">
+                    Nova Importação
+                </h2>
+
+                <p>
+                    Selecione o CSV mais recente das faturas pendentes.
+                </p>
 
             </div>
 
             <button
-                id="confirmImportBtn"
-                disabled>
+                id="closeImportModalBtn"
+                class="icon-btn"
+                type="button"
+                aria-label="Fechar importação"
+            >
 
-                Confirmar Importação
+                <i data-lucide="x"></i>
 
             </button>
 
-        </section>
+        </div>
 
-    </main>
+        <div class="modal-content">
+
+            <section
+                id="importSection"
+                class="import-section"
+            >
+
+                <div id="dropZone">
+
+                    <div class="upload-icon">
+
+                        <i data-lucide="file-spreadsheet"></i>
+
+                    </div>
+
+                    <h3>
+                        Arraste aqui o ficheiro CSV
+                    </h3>
+
+                    <p>
+                        ou clique para selecionar o ficheiro
+                    </p>
+
+                    <input
+                        type="file"
+                        id="csvFile"
+                        accept=".csv"
+                        hidden
+                    >
+
+                    <button
+                        id="selectFileBtn"
+                        class="primary-btn"
+                        type="button"
+                    >
+
+                        <i data-lucide="folder-open"></i>
+
+                        <span>
+                            Selecionar ficheiro
+                        </span>
+
+                    </button>
+
+                </div>
+
+                <div id="lastImport">
+
+                    <div class="last-import-icon">
+
+                        <i data-lucide="history"></i>
+
+                    </div>
+
+                    <div>
+
+                        <strong>
+                            Última importação
+                        </strong>
+
+                        <p>
+                            Sem importações nesta sessão.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section
+                id="analysisSection"
+                class="analysis-section"
+            >
+
+                <div class="section-title">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Validação
+                        </span>
+
+                        <h3>
+                            Pré-análise
+                        </h3>
+
+                    </div>
+
+                </div>
+
+                <div id="analysisContent">
+                    À espera de um ficheiro CSV...
+                </div>
+
+                <button
+                    id="confirmImportBtn"
+                    class="primary-btn confirm-import-btn"
+                    type="button"
+                    disabled
+                >
+
+                    <i data-lucide="circle-check-big"></i>
+
+                    <span>
+                        Confirmar Importação
+                    </span>
+
+                </button>
+
+            </section>
+
+        </div>
+
+    </div>
 
 </div>
 
+<div
+    id="commandPalette"
+    class="modal command-modal"
+    aria-hidden="true"
+>
+
+    <div
+        class="modal-backdrop"
+        data-close-command="true"
+    ></div>
+
+    <div
+        class="command-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Pesquisa global"
+    >
+
+        <div class="command-search">
+
+            <i data-lucide="search"></i>
+
+            <input
+                id="commandInput"
+                type="text"
+                placeholder="Procurar ou executar uma ação..."
+                autocomplete="off"
+            >
+
+            <kbd>
+                ESC
+            </kbd>
+
+        </div>
+
+        <div class="command-content">
+
+            <span class="command-label">
+                Navegação rápida
+            </span>
+
+            <button
+                class="command-item"
+                type="button"
+                data-command-page="dashboard"
+            >
+
+                <i data-lucide="layout-dashboard"></i>
+
+                <span>
+                    Ir para Dashboard
+                </span>
+
+            </button>
+
+            <button
+                class="command-item"
+                type="button"
+                data-command-page="faturas"
+            >
+
+                <i data-lucide="receipt-text"></i>
+
+                <span>
+                    Ir para Faturas
+                </span>
+
+            </button>
+
+            <button
+                class="command-item"
+                type="button"
+                data-command-page="clientes"
+            >
+
+                <i data-lucide="users"></i>
+
+                <span>
+                    Ir para Clientes
+                </span>
+
+            </button>
+
+            <button
+                class="command-item"
+                type="button"
+                data-command-page="historico"
+            >
+
+                <i data-lucide="history"></i>
+
+                <span>
+                    Ir para Histórico
+                </span>
+
+            </button>
+
+            <button
+                class="command-item"
+                type="button"
+                data-command-page="ai"
+            >
+
+                <i data-lucide="sparkles"></i>
+
+                <span>
+                    Ir para AI Intelligence
+                </span>
+
+            </button>
+
+            <button
+                class="command-item"
+                type="button"
+                data-command-action="importar"
+            >
+
+                <i data-lucide="upload"></i>
+
+                <span>
+                    Nova Importação
+                </span>
+
+            </button>
+
+            <div
+                id="commandEmpty"
+                class="command-empty"
+            >
+                Nenhum resultado encontrado.
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script src="https://unpkg.com/lucide@latest"></script>
 <script src="app.js"></script>
 
 </body>
