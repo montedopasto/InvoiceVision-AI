@@ -1,11 +1,19 @@
+const API_URL =
+    "https://script.google.com/macros/s/AKfycbygW5s-rhhtbl8EyN56ri-jqvs_aL-PRrmORqh_lwT5E8mMFxbAX1oMHLe0eW8fdVZYqw/exec";
+
+
 const ELEMENTOS = {
     dropZone: document.getElementById("dropZone"),
     csvFile: document.getElementById("csvFile"),
     selectFileBtn: document.getElementById("selectFileBtn"),
     analysisSection: document.getElementById("analysisSection"),
     analysisContent: document.getElementById("analysisContent"),
-    confirmImportBtn: document.getElementById("confirmImportBtn")
+    confirmImportBtn: document.getElementById("confirmImportBtn"),
+    lastImport: document.getElementById("lastImport"),
+    status: document.querySelector(".status"),
+    statusDot: document.querySelector(".status-dot")
 };
+
 
 const CABECALHOS_OBRIGATORIOS = [
     "N.",
@@ -23,8 +31,22 @@ const CABECALHOS_OBRIGATORIOS = [
     "Obs."
 ];
 
+
 let ficheiroSelecionado = null;
 let linhasCsv = [];
+let resumoCsv = null;
+let importacaoEmCurso = false;
+
+
+/*
+|--------------------------------------------------------------------------
+| Inicialização
+|--------------------------------------------------------------------------
+*/
+
+document.addEventListener("DOMContentLoaded", function() {
+    verificarLigacaoApi();
+});
 
 
 /*
@@ -35,12 +57,19 @@ let linhasCsv = [];
 
 ELEMENTOS.selectFileBtn.addEventListener("click", function(evento) {
     evento.stopPropagation();
-    ELEMENTOS.csvFile.click();
+
+    if (!importacaoEmCurso) {
+        ELEMENTOS.csvFile.click();
+    }
 });
 
+
 ELEMENTOS.dropZone.addEventListener("click", function() {
-    ELEMENTOS.csvFile.click();
+    if (!importacaoEmCurso) {
+        ELEMENTOS.csvFile.click();
+    }
 });
+
 
 ELEMENTOS.csvFile.addEventListener("change", function(evento) {
     const ficheiro = evento.target.files[0];
@@ -50,18 +79,29 @@ ELEMENTOS.csvFile.addEventListener("change", function(evento) {
     }
 });
 
+
 ELEMENTOS.dropZone.addEventListener("dragover", function(evento) {
     evento.preventDefault();
-    ELEMENTOS.dropZone.classList.add("dragover");
+
+    if (!importacaoEmCurso) {
+        ELEMENTOS.dropZone.classList.add("dragover");
+    }
 });
+
 
 ELEMENTOS.dropZone.addEventListener("dragleave", function() {
     ELEMENTOS.dropZone.classList.remove("dragover");
 });
 
+
 ELEMENTOS.dropZone.addEventListener("drop", function(evento) {
     evento.preventDefault();
+
     ELEMENTOS.dropZone.classList.remove("dragover");
+
+    if (importacaoEmCurso) {
+        return;
+    }
 
     const ficheiro = evento.dataTransfer.files[0];
 
@@ -70,11 +110,158 @@ ELEMENTOS.dropZone.addEventListener("drop", function(evento) {
     }
 });
 
+
 ELEMENTOS.confirmImportBtn.addEventListener("click", function() {
-    alert(
-        "O ficheiro está pronto. No próximo passo vamos ligá-lo ao Google Apps Script."
-    );
+    confirmarImportacao();
 });
+
+
+/*
+|--------------------------------------------------------------------------
+| Ligação ao Apps Script
+|--------------------------------------------------------------------------
+*/
+
+async function verificarLigacaoApi() {
+    atualizarEstadoLigacao(
+        "A ligar...",
+        "loading"
+    );
+
+    try {
+        const resposta = await fetch(
+            API_URL + "?acao=estado&t=" + Date.now(),
+            {
+                method: "GET",
+                cache: "no-store"
+            }
+        );
+
+        if (!resposta.ok) {
+            throw new Error(
+                "A API respondeu com o estado " +
+                resposta.status +
+                "."
+            );
+        }
+
+        const dados = await resposta.json();
+
+        if (!dados.sucesso) {
+            throw new Error(
+                dados.erro ||
+                "A API não confirmou a ligação."
+            );
+        }
+
+        atualizarEstadoLigacao(
+            "Online",
+            "online"
+        );
+
+    } catch (erro) {
+        console.error(
+            "Erro de ligação:",
+            erro
+        );
+
+        atualizarEstadoLigacao(
+            "Sem ligação",
+            "offline"
+        );
+    }
+}
+
+
+async function confirmarImportacao() {
+    if (importacaoEmCurso) {
+        return;
+    }
+
+    if (
+        !ficheiroSelecionado ||
+        linhasCsv.length === 0
+    ) {
+        mostrarErro(
+            "Selecione primeiro um ficheiro CSV válido."
+        );
+
+        return;
+    }
+
+    importacaoEmCurso = true;
+
+    bloquearInterfaceImportacao();
+
+    mostrarEstadoImportacao(
+        "A enviar o ficheiro...",
+        "Estamos a guardar as faturas na Google Sheet."
+    );
+
+    try {
+        const pedido = {
+            acao: "importar",
+            nomeFicheiro: ficheiroSelecionado.name,
+            linhas: linhasCsv
+        };
+
+        const resposta = await fetch(
+            API_URL,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "text/plain;charset=utf-8"
+                },
+
+                body: JSON.stringify(pedido)
+            }
+        );
+
+        if (!resposta.ok) {
+            throw new Error(
+                "O servidor respondeu com o estado " +
+                resposta.status +
+                "."
+            );
+        }
+
+        const dados = await resposta.json();
+
+        if (!dados.sucesso) {
+            throw new Error(
+                dados.erro ||
+                "A importação não foi concluída."
+            );
+        }
+
+        mostrarImportacaoConcluida(
+            dados.resultado
+        );
+
+        atualizarUltimaImportacao(
+            dados.resultado
+        );
+
+        limparFicheiroSelecionado();
+
+    } catch (erro) {
+        console.error(
+            "Erro na importação:",
+            erro
+        );
+
+        mostrarErroImportacao(
+            erro.message ||
+            "Não foi possível concluir a importação."
+        );
+
+    } finally {
+        importacaoEmCurso = false;
+        desbloquearInterfaceImportacao();
+    }
+}
 
 
 /*
@@ -90,6 +277,7 @@ function processarFicheiro(ficheiro) {
         mostrarErro(
             "O ficheiro selecionado não é um CSV."
         );
+
         return;
     }
 
@@ -124,18 +312,19 @@ function processarFicheiro(ficheiro) {
                 );
             }
 
-            const resumo = calcularResumo(
+            resumoCsv = calcularResumo(
                 linhasCsv
             );
 
             mostrarAnalise(
                 ficheiro,
-                resumo
+                resumoCsv
             );
 
         } catch (erro) {
             ficheiroSelecionado = null;
             linhasCsv = [];
+            resumoCsv = null;
 
             mostrarErro(
                 erro.message ||
@@ -147,6 +336,7 @@ function processarFicheiro(ficheiro) {
     leitor.onerror = function() {
         ficheiroSelecionado = null;
         linhasCsv = [];
+        resumoCsv = null;
 
         mostrarErro(
             "O navegador não conseguiu abrir o ficheiro."
@@ -172,8 +362,12 @@ function validarExtensao(ficheiro) {
         .endsWith(".csv");
 }
 
+
 function validarTabela(tabela) {
-    if (!Array.isArray(tabela) || tabela.length < 2) {
+    if (
+        !Array.isArray(tabela) ||
+        tabela.length < 2
+    ) {
         throw new Error(
             "O CSV está vazio ou não tem linhas suficientes."
         );
@@ -216,6 +410,7 @@ function removerBom(texto) {
     );
 }
 
+
 function detetarSeparador(conteudo) {
     const primeiraLinha =
         conteudo.split(/\r?\n/)[0] || "";
@@ -247,6 +442,7 @@ function detetarSeparador(conteudo) {
     return melhorSeparador;
 }
 
+
 function contarSeparadoresForaDeAspas(
     linha,
     separador
@@ -267,6 +463,7 @@ function contarSeparadoresForaDeAspas(
                 linha[indice + 1] === "\""
             ) {
                 indice++;
+
             } else {
                 dentroDeAspas =
                     !dentroDeAspas;
@@ -285,6 +482,7 @@ function contarSeparadoresForaDeAspas(
 
     return quantidade;
 }
+
 
 function converterCsvEmTabela(
     conteudo,
@@ -311,6 +509,7 @@ function converterCsvEmTabela(
             ) {
                 campoAtual += "\"";
                 indice++;
+
             } else {
                 dentroDeAspas =
                     !dentroDeAspas;
@@ -332,8 +531,10 @@ function converterCsvEmTabela(
         }
 
         if (
-            (caractere === "\n" ||
-            caractere === "\r") &&
+            (
+                caractere === "\n" ||
+                caractere === "\r"
+            ) &&
             !dentroDeAspas
         ) {
             if (
@@ -360,6 +561,7 @@ function converterCsvEmTabela(
 
             linhaAtual = [];
             campoAtual = "";
+
             continue;
         }
 
@@ -383,6 +585,7 @@ function converterCsvEmTabela(
 
     return linhas;
 }
+
 
 function converterTabelaEmObjetos(tabela) {
     const cabecalhosOriginais =
@@ -437,6 +640,7 @@ function converterTabelaEmObjetos(tabela) {
         });
 }
 
+
 function normalizarCabecalho(valor) {
     return String(valor || "")
         .trim()
@@ -482,14 +686,17 @@ function calcularResumo(linhas) {
     return {
         totalClientes: clientes.size,
         totalFaturas: linhas.length,
+
         valorTotal: arredondarMoeda(
             valorTotal
         ),
+
         valorPendente: arredondarMoeda(
             valorPendente
         )
     };
 }
+
 
 function converterNumero(valor) {
     if (
@@ -516,12 +723,14 @@ function converterNumero(valor) {
             texto = texto
                 .replace(/\./g, "")
                 .replace(",", ".");
+
         } else {
             texto = texto.replace(
                 /,/g,
                 ""
             );
         }
+
     } else if (texto.includes(",")) {
         texto = texto.replace(
             ",",
@@ -541,10 +750,13 @@ function converterNumero(valor) {
         : 0;
 }
 
+
 function arredondarMoeda(valor) {
     return Math.round(
-        (Number(valor || 0) +
-        Number.EPSILON) *
+        (
+            Number(valor || 0) +
+            Number.EPSILON
+        ) *
         100
     ) / 100;
 }
@@ -552,7 +764,7 @@ function arredondarMoeda(valor) {
 
 /*
 |--------------------------------------------------------------------------
-| Interface
+| Interface da pré-análise
 |--------------------------------------------------------------------------
 */
 
@@ -613,6 +825,7 @@ function mostrarAnalise(
         "Confirmar Importação";
 }
 
+
 function criarCartaoAnalise(
     titulo,
     valor
@@ -647,6 +860,409 @@ function criarCartaoAnalise(
     `;
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| Interface durante e depois da importação
+|--------------------------------------------------------------------------
+*/
+
+function mostrarEstadoImportacao(
+    titulo,
+    descricao
+) {
+    ELEMENTOS.analysisSection.classList.add(
+        "visible"
+    );
+
+    ELEMENTOS.analysisContent.innerHTML = `
+        <div style="
+            padding:28px;
+            border:1px solid #bfdbfe;
+            border-radius:16px;
+            background:#eff6ff;
+            text-align:center;
+        ">
+            <div style="
+                width:42px;
+                height:42px;
+                margin:0 auto 16px;
+                border:4px solid #bfdbfe;
+                border-top-color:#2563eb;
+                border-radius:50%;
+                animation:invoiceSpin 0.8s linear infinite;
+            "></div>
+
+            <h3 style="
+                margin-bottom:8px;
+                color:#1e3a8a;
+                font-size:18px;
+            ">
+                ${escaparHtml(titulo)}
+            </h3>
+
+            <p style="
+                color:#475569;
+                font-size:14px;
+            ">
+                ${escaparHtml(descricao)}
+            </p>
+        </div>
+
+        <style>
+            @keyframes invoiceSpin {
+                to {
+                    transform:rotate(360deg);
+                }
+            }
+        </style>
+    `;
+}
+
+
+function mostrarImportacaoConcluida(resultado) {
+    const diferenca =
+        Number(resultado.diferencaValorPendente || 0);
+
+    const textoDiferenca =
+        diferenca > 0
+            ? "+" + formatarMoeda(diferenca)
+            : formatarMoeda(diferenca);
+
+    ELEMENTOS.analysisSection.classList.add(
+        "visible"
+    );
+
+    ELEMENTOS.analysisContent.innerHTML = `
+        <div style="
+            padding:22px;
+            border:1px solid #bbf7d0;
+            border-radius:16px;
+            background:#f0fdf4;
+        ">
+            <div style="
+                display:flex;
+                align-items:center;
+                gap:12px;
+                margin-bottom:20px;
+            ">
+                <div style="
+                    width:46px;
+                    height:46px;
+                    display:grid;
+                    place-items:center;
+                    border-radius:50%;
+                    background:#16a34a;
+                    color:white;
+                    font-size:24px;
+                    font-weight:800;
+                ">
+                    ✓
+                </div>
+
+                <div>
+                    <h3 style="
+                        color:#166534;
+                        font-size:19px;
+                    ">
+                        Importação concluída
+                    </h3>
+
+                    <p style="
+                        margin-top:3px;
+                        color:#15803d;
+                        font-size:13px;
+                    ">
+                        ${escaparHtml(
+                            resultado.idImportacao
+                        )}
+                    </p>
+                </div>
+            </div>
+
+            <div style="
+                display:grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(160px, 1fr));
+                gap:12px;
+            ">
+                ${criarCartaoResultado(
+                    "Clientes",
+                    formatarNumero(
+                        resultado.totalClientes
+                    )
+                )}
+
+                ${criarCartaoResultado(
+                    "Faturas",
+                    formatarNumero(
+                        resultado.totalFaturas
+                    )
+                )}
+
+                ${criarCartaoResultado(
+                    "Novas",
+                    formatarNumero(
+                        resultado.novasFaturas
+                    )
+                )}
+
+                ${criarCartaoResultado(
+                    "Liquidadas",
+                    formatarNumero(
+                        resultado.liquidadas
+                    )
+                )}
+
+                ${criarCartaoResultado(
+                    "Pagamentos parciais",
+                    formatarNumero(
+                        resultado.pagamentosParciais
+                    )
+                )}
+
+                ${criarCartaoResultado(
+                    "Valor pendente",
+                    formatarMoeda(
+                        resultado.valorPendente
+                    )
+                )}
+
+                ${criarCartaoResultado(
+                    "Diferença",
+                    textoDiferenca
+                )}
+            </div>
+        </div>
+    `;
+
+    ELEMENTOS.confirmImportBtn.textContent =
+        "Importação concluída";
+
+    ELEMENTOS.confirmImportBtn.disabled =
+        true;
+}
+
+
+function criarCartaoResultado(
+    titulo,
+    valor
+) {
+    return `
+        <div style="
+            padding:15px;
+            border:1px solid #dcfce7;
+            border-radius:13px;
+            background:#ffffff;
+        ">
+            <div style="
+                margin-bottom:6px;
+                color:#64748b;
+                font-size:11px;
+                font-weight:800;
+                text-transform:uppercase;
+                letter-spacing:0.05em;
+            ">
+                ${titulo}
+            </div>
+
+            <div style="
+                color:#14532d;
+                font-size:17px;
+                font-weight:800;
+                overflow-wrap:anywhere;
+            ">
+                ${valor}
+            </div>
+        </div>
+    `;
+}
+
+
+function mostrarErroImportacao(mensagem) {
+    ELEMENTOS.analysisSection.classList.add(
+        "visible"
+    );
+
+    ELEMENTOS.analysisContent.innerHTML = `
+        <div style="
+            padding:22px;
+            border:1px solid #fecaca;
+            border-radius:16px;
+            background:#fef2f2;
+            color:#991b1b;
+        ">
+            <h3 style="
+                margin-bottom:8px;
+                font-size:18px;
+            ">
+                Erro na importação
+            </h3>
+
+            <p style="
+                font-size:14px;
+                line-height:1.6;
+            ">
+                ${escaparHtml(mensagem)}
+            </p>
+        </div>
+    `;
+
+    ELEMENTOS.confirmImportBtn.disabled =
+        false;
+
+    ELEMENTOS.confirmImportBtn.textContent =
+        "Tentar novamente";
+}
+
+
+function atualizarUltimaImportacao(resultado) {
+    ELEMENTOS.lastImport.innerHTML = `
+        <strong>Última importação</strong>
+
+        <p>
+            ${escaparHtml(
+                resultado.dataImportacao
+            )}
+            ·
+            ${formatarNumero(
+                resultado.totalFaturas
+            )}
+            faturas
+        </p>
+    `;
+}
+
+
+function bloquearInterfaceImportacao() {
+    ELEMENTOS.confirmImportBtn.disabled =
+        true;
+
+    ELEMENTOS.confirmImportBtn.textContent =
+        "A importar...";
+
+    ELEMENTOS.selectFileBtn.disabled =
+        true;
+
+    ELEMENTOS.csvFile.disabled =
+        true;
+
+    ELEMENTOS.dropZone.style.opacity =
+        "0.65";
+
+    ELEMENTOS.dropZone.style.pointerEvents =
+        "none";
+}
+
+
+function desbloquearInterfaceImportacao() {
+    ELEMENTOS.selectFileBtn.disabled =
+        false;
+
+    ELEMENTOS.csvFile.disabled =
+        false;
+
+    ELEMENTOS.dropZone.style.opacity =
+        "1";
+
+    ELEMENTOS.dropZone.style.pointerEvents =
+        "auto";
+}
+
+
+function limparFicheiroSelecionado() {
+    ficheiroSelecionado = null;
+    linhasCsv = [];
+    resumoCsv = null;
+
+    ELEMENTOS.csvFile.value = "";
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Estado da ligação
+|--------------------------------------------------------------------------
+*/
+
+function atualizarEstadoLigacao(
+    textoEstado,
+    tipo
+) {
+    if (!ELEMENTOS.status) {
+        return;
+    }
+
+    ELEMENTOS.status.innerHTML = `
+        <span
+            class="status-dot"
+            style="
+                background:${obterCorEstado(tipo)};
+                box-shadow:
+                    0 0 0 4px
+                    ${obterSombraEstado(tipo)};
+            "
+        ></span>
+
+        <span>${escaparHtml(textoEstado)}</span>
+    `;
+
+    if (tipo === "offline") {
+        ELEMENTOS.status.style.background =
+            "#fef2f2";
+
+        ELEMENTOS.status.style.color =
+            "#991b1b";
+
+    } else if (tipo === "loading") {
+        ELEMENTOS.status.style.background =
+            "#fffbeb";
+
+        ELEMENTOS.status.style.color =
+            "#92400e";
+
+    } else {
+        ELEMENTOS.status.style.background =
+            "#f0fdf4";
+
+        ELEMENTOS.status.style.color =
+            "#166534";
+    }
+}
+
+
+function obterCorEstado(tipo) {
+    if (tipo === "offline") {
+        return "#dc2626";
+    }
+
+    if (tipo === "loading") {
+        return "#f59e0b";
+    }
+
+    return "#16a34a";
+}
+
+
+function obterSombraEstado(tipo) {
+    if (tipo === "offline") {
+        return "rgba(220,38,38,0.12)";
+    }
+
+    if (tipo === "loading") {
+        return "rgba(245,158,11,0.14)";
+    }
+
+    return "rgba(22,163,74,0.12)";
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Erros e limpeza
+|--------------------------------------------------------------------------
+*/
+
 function mostrarErro(mensagem) {
     ELEMENTOS.analysisSection.classList.add(
         "visible"
@@ -669,6 +1285,7 @@ function mostrarErro(mensagem) {
         true;
 }
 
+
 function limparAnalise() {
     ELEMENTOS.analysisSection.classList.remove(
         "visible"
@@ -684,6 +1301,13 @@ function limparAnalise() {
         "Confirmar Importação";
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| Formatação
+|--------------------------------------------------------------------------
+*/
+
 function formatarMoeda(valor) {
     return new Intl.NumberFormat(
         "pt-PT",
@@ -691,14 +1315,20 @@ function formatarMoeda(valor) {
             style: "currency",
             currency: "EUR"
         }
-    ).format(valor);
+    ).format(
+        Number(valor || 0)
+    );
 }
+
 
 function formatarNumero(valor) {
     return new Intl.NumberFormat(
         "pt-PT"
-    ).format(valor);
+    ).format(
+        Number(valor || 0)
+    );
 }
+
 
 function escaparHtml(valor) {
     return String(valor)
