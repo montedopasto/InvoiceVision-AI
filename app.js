@@ -2,6 +2,32 @@ const API_URL =
     "https://script.google.com/macros/s/AKfycbygW5s-rhhtbl8EyN56ri-jqvs_aL-PRrmORqh_lwT5E8mMFxbAX1oMHLe0eW8fdVZYqw/exec";
 
 
+const App = {};
+const Dashboard = {};
+const Clientes = {};
+const Faturas = {};
+const Historico = {};
+const AI = {};
+
+
+const DATA = {
+    clientes: [],
+    faturas: [],
+
+    dashboard: {
+        totalClientes: 0,
+        totalFaturas: 0,
+        valorTotal: 0,
+        valorPendente: 0,
+        totalVencidas: 0
+    },
+
+    alertas: [],
+    insights: [],
+    rankings: {}
+};
+
+
 const ELEMENTOS = {
     dropZone: document.getElementById("dropZone"),
     csvFile: document.getElementById("csvFile"),
@@ -11,7 +37,34 @@ const ELEMENTOS = {
     confirmImportBtn: document.getElementById("confirmImportBtn"),
     lastImport: document.getElementById("lastImport"),
     status: document.querySelector(".status"),
-    statusDot: document.querySelector(".status-dot")
+
+    sidebar: document.getElementById("sidebar"),
+    mobileOverlay: document.getElementById("mobileOverlay"),
+    openSidebarBtn: document.getElementById("openSidebarBtn"),
+    closeSidebarBtn: document.getElementById("closeSidebarBtn"),
+
+    pageTitle: document.getElementById("pageTitle"),
+    navItems: document.querySelectorAll(".nav-item"),
+    appPages: document.querySelectorAll(".app-page"),
+
+    sidebarImportBtn: document.getElementById("sidebarImportBtn"),
+    headerImportBtn: document.getElementById("headerImportBtn"),
+    importModal: document.getElementById("importModal"),
+    closeImportModalBtn: document.getElementById("closeImportModalBtn"),
+
+    globalSearchBtn: document.getElementById("globalSearchBtn"),
+    commandPalette: document.getElementById("commandPalette"),
+    commandInput: document.getElementById("commandInput"),
+    commandItems: document.querySelectorAll(".command-item"),
+    commandEmpty: document.getElementById("commandEmpty"),
+
+    themeToggleBtn: document.getElementById("themeToggleBtn"),
+
+    dashboardLastImport: document.getElementById("dashboardLastImport"),
+    kpiClientes: document.getElementById("kpiClientes"),
+    kpiFaturas: document.getElementById("kpiFaturas"),
+    kpiValorPendente: document.getElementById("kpiValorPendente"),
+    kpiVencidas: document.getElementById("kpiVencidas")
 };
 
 
@@ -45,75 +98,452 @@ let importacaoEmCurso = false;
 */
 
 document.addEventListener("DOMContentLoaded", function() {
+    inicializarInterface();
     verificarLigacaoApi();
 });
 
 
+function inicializarInterface() {
+    aplicarTemaGuardado();
+    registarEventosInterface();
+
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+}
+
+
 /*
 |--------------------------------------------------------------------------
-| Eventos
+| Navegação e interface
 |--------------------------------------------------------------------------
 */
 
-ELEMENTOS.selectFileBtn.addEventListener("click", function(evento) {
-    evento.stopPropagation();
+function registarEventosInterface() {
+    ELEMENTOS.navItems.forEach(function(item) {
+        item.addEventListener("click", function() {
+            navegarParaPagina(item.dataset.page);
+        });
+    });
 
-    if (!importacaoEmCurso) {
-        ELEMENTOS.csvFile.click();
+    document.querySelectorAll("[data-page-link]").forEach(function(botao) {
+        botao.addEventListener("click", function() {
+            navegarParaPagina(botao.dataset.pageLink);
+        });
+    });
+
+    ELEMENTOS.openSidebarBtn.addEventListener(
+        "click",
+        abrirSidebar
+    );
+
+    ELEMENTOS.closeSidebarBtn.addEventListener(
+        "click",
+        fecharSidebar
+    );
+
+    ELEMENTOS.mobileOverlay.addEventListener(
+        "click",
+        fecharSidebar
+    );
+
+    ELEMENTOS.sidebarImportBtn.addEventListener(
+        "click",
+        abrirModalImportacao
+    );
+
+    ELEMENTOS.headerImportBtn.addEventListener(
+        "click",
+        abrirModalImportacao
+    );
+
+    ELEMENTOS.closeImportModalBtn.addEventListener(
+        "click",
+        fecharModalImportacao
+    );
+
+    document.querySelectorAll("[data-close-modal='true']")
+        .forEach(function(elemento) {
+            elemento.addEventListener(
+                "click",
+                fecharModalImportacao
+            );
+        });
+
+    ELEMENTOS.globalSearchBtn.addEventListener(
+        "click",
+        abrirCommandPalette
+    );
+
+    document.querySelectorAll("[data-close-command='true']")
+        .forEach(function(elemento) {
+            elemento.addEventListener(
+                "click",
+                fecharCommandPalette
+            );
+        });
+
+    ELEMENTOS.commandInput.addEventListener(
+        "input",
+        filtrarCommandPalette
+    );
+
+    ELEMENTOS.commandItems.forEach(function(item) {
+        item.addEventListener("click", function() {
+            const pagina = item.dataset.commandPage;
+            const acao = item.dataset.commandAction;
+
+            if (pagina) {
+                navegarParaPagina(pagina);
+                fecharCommandPalette();
+                return;
+            }
+
+            if (acao === "importar") {
+                fecharCommandPalette();
+                abrirModalImportacao();
+            }
+        });
+    });
+
+    ELEMENTOS.themeToggleBtn.addEventListener(
+        "click",
+        alternarTema
+    );
+
+    document.addEventListener("keydown", function(evento) {
+        const teclaK =
+            evento.key.toLowerCase() === "k";
+
+        if (
+            (evento.ctrlKey || evento.metaKey) &&
+            teclaK
+        ) {
+            evento.preventDefault();
+            abrirCommandPalette();
+            return;
+        }
+
+        if (evento.key === "Escape") {
+            fecharCommandPalette();
+            fecharModalImportacao();
+            fecharSidebar();
+        }
+    });
+}
+
+
+function navegarParaPagina(pagina) {
+    const paginaDestino =
+        document.getElementById(
+            "page-" + pagina
+        );
+
+    if (!paginaDestino) {
+        return;
     }
-});
+
+    ELEMENTOS.appPages.forEach(function(secao) {
+        secao.classList.remove("active");
+    });
+
+    ELEMENTOS.navItems.forEach(function(item) {
+        item.classList.toggle(
+            "active",
+            item.dataset.page === pagina
+        );
+    });
+
+    paginaDestino.classList.add("active");
+
+    ELEMENTOS.pageTitle.textContent =
+        paginaDestino.dataset.title ||
+        "InvoiceVision AI";
+
+    fecharSidebar();
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
 
 
-ELEMENTOS.dropZone.addEventListener("click", function() {
-    if (!importacaoEmCurso) {
-        ELEMENTOS.csvFile.click();
-    }
-});
+function abrirSidebar() {
+    ELEMENTOS.sidebar.classList.add("open");
+    ELEMENTOS.mobileOverlay.classList.add("visible");
+}
 
 
-ELEMENTOS.csvFile.addEventListener("change", function(evento) {
-    const ficheiro = evento.target.files[0];
-
-    if (ficheiro) {
-        processarFicheiro(ficheiro);
-    }
-});
+function fecharSidebar() {
+    ELEMENTOS.sidebar.classList.remove("open");
+    ELEMENTOS.mobileOverlay.classList.remove("visible");
+}
 
 
-ELEMENTOS.dropZone.addEventListener("dragover", function(evento) {
-    evento.preventDefault();
+function abrirModalImportacao() {
+    ELEMENTOS.importModal.classList.add("open");
 
-    if (!importacaoEmCurso) {
-        ELEMENTOS.dropZone.classList.add("dragover");
-    }
-});
+    ELEMENTOS.importModal.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+    document.body.classList.add("modal-open");
+
+    fecharSidebar();
+}
 
 
-ELEMENTOS.dropZone.addEventListener("dragleave", function() {
-    ELEMENTOS.dropZone.classList.remove("dragover");
-});
-
-
-ELEMENTOS.dropZone.addEventListener("drop", function(evento) {
-    evento.preventDefault();
-
-    ELEMENTOS.dropZone.classList.remove("dragover");
-
+function fecharModalImportacao() {
     if (importacaoEmCurso) {
         return;
     }
 
-    const ficheiro = evento.dataTransfer.files[0];
+    ELEMENTOS.importModal.classList.remove("open");
 
-    if (ficheiro) {
-        processarFicheiro(ficheiro);
+    ELEMENTOS.importModal.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+    atualizarBloqueioBody();
+}
+
+
+function abrirCommandPalette() {
+    ELEMENTOS.commandPalette.classList.add("open");
+
+    ELEMENTOS.commandPalette.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+    document.body.classList.add("modal-open");
+
+    ELEMENTOS.commandInput.value = "";
+
+    filtrarCommandPalette();
+
+    setTimeout(function() {
+        ELEMENTOS.commandInput.focus();
+    }, 50);
+}
+
+
+function fecharCommandPalette() {
+    ELEMENTOS.commandPalette.classList.remove("open");
+
+    ELEMENTOS.commandPalette.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+    atualizarBloqueioBody();
+}
+
+
+function atualizarBloqueioBody() {
+    const existeModalAberto =
+        ELEMENTOS.importModal.classList.contains("open") ||
+        ELEMENTOS.commandPalette.classList.contains("open");
+
+    document.body.classList.toggle(
+        "modal-open",
+        existeModalAberto
+    );
+}
+
+
+function filtrarCommandPalette() {
+    const pesquisa =
+        ELEMENTOS.commandInput.value
+            .trim()
+            .toLowerCase();
+
+    let totalVisiveis = 0;
+
+    ELEMENTOS.commandItems.forEach(function(item) {
+        const corresponde =
+            item.textContent
+                .toLowerCase()
+                .includes(pesquisa);
+
+        item.style.display =
+            corresponde
+                ? "flex"
+                : "none";
+
+        if (corresponde) {
+            totalVisiveis++;
+        }
+    });
+
+    ELEMENTOS.commandEmpty.classList.toggle(
+        "visible",
+        totalVisiveis === 0
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Tema
+|--------------------------------------------------------------------------
+*/
+
+function aplicarTemaGuardado() {
+    const temaGuardado =
+        localStorage.getItem(
+            "invoicevision-theme"
+        );
+
+    const prefereEscuro =
+        window.matchMedia &&
+        window.matchMedia(
+            "(prefers-color-scheme: dark)"
+        ).matches;
+
+    const tema =
+        temaGuardado ||
+        (
+            prefereEscuro
+                ? "dark"
+                : "light"
+        );
+
+    aplicarTema(tema);
+}
+
+
+function alternarTema() {
+    const temaAtual =
+        document.documentElement.dataset.theme ||
+        "light";
+
+    aplicarTema(
+        temaAtual === "dark"
+            ? "light"
+            : "dark"
+    );
+}
+
+
+function aplicarTema(tema) {
+    document.documentElement.dataset.theme =
+        tema;
+
+    localStorage.setItem(
+        "invoicevision-theme",
+        tema
+    );
+
+    ELEMENTOS.themeToggleBtn.innerHTML =
+        tema === "dark"
+            ? '<i data-lucide="sun"></i>'
+            : '<i data-lucide="moon"></i>';
+
+    if (window.lucide) {
+        window.lucide.createIcons();
     }
-});
+}
 
 
-ELEMENTOS.confirmImportBtn.addEventListener("click", function() {
-    confirmarImportacao();
-});
+/*
+|--------------------------------------------------------------------------
+| Eventos da importação
+|--------------------------------------------------------------------------
+*/
+
+ELEMENTOS.selectFileBtn.addEventListener(
+    "click",
+    function(evento) {
+        evento.stopPropagation();
+
+        if (!importacaoEmCurso) {
+            ELEMENTOS.csvFile.click();
+        }
+    }
+);
+
+
+ELEMENTOS.dropZone.addEventListener(
+    "click",
+    function() {
+        if (!importacaoEmCurso) {
+            ELEMENTOS.csvFile.click();
+        }
+    }
+);
+
+
+ELEMENTOS.csvFile.addEventListener(
+    "change",
+    function(evento) {
+        const ficheiro =
+            evento.target.files[0];
+
+        if (ficheiro) {
+            processarFicheiro(ficheiro);
+        }
+    }
+);
+
+
+ELEMENTOS.dropZone.addEventListener(
+    "dragover",
+    function(evento) {
+        evento.preventDefault();
+
+        if (!importacaoEmCurso) {
+            ELEMENTOS.dropZone
+                .classList.add(
+                    "dragover"
+                );
+        }
+    }
+);
+
+
+ELEMENTOS.dropZone.addEventListener(
+    "dragleave",
+    function() {
+        ELEMENTOS.dropZone
+            .classList.remove(
+                "dragover"
+            );
+    }
+);
+
+
+ELEMENTOS.dropZone.addEventListener(
+    "drop",
+    function(evento) {
+        evento.preventDefault();
+
+        ELEMENTOS.dropZone
+            .classList.remove(
+                "dragover"
+            );
+
+        if (importacaoEmCurso) {
+            return;
+        }
+
+        const ficheiro =
+            evento.dataTransfer.files[0];
+
+        if (ficheiro) {
+            processarFicheiro(ficheiro);
+        }
+    }
+);
+
+
+ELEMENTOS.confirmImportBtn.addEventListener(
+    "click",
+    confirmarImportacao
+);
 
 
 /*
@@ -130,7 +560,9 @@ async function verificarLigacaoApi() {
 
     try {
         const resposta = await fetch(
-            API_URL + "?acao=estado&t=" + Date.now(),
+            API_URL +
+            "?acao=estado&t=" +
+            Date.now(),
             {
                 method: "GET",
                 cache: "no-store"
@@ -145,7 +577,8 @@ async function verificarLigacaoApi() {
             );
         }
 
-        const dados = await resposta.json();
+        const dados =
+            await resposta.json();
 
         if (!dados.sucesso) {
             throw new Error(
@@ -201,7 +634,8 @@ async function confirmarImportacao() {
     try {
         const pedido = {
             acao: "importar",
-            nomeFicheiro: ficheiroSelecionado.name,
+            nomeFicheiro:
+                ficheiroSelecionado.name,
             linhas: linhasCsv
         };
 
@@ -215,7 +649,9 @@ async function confirmarImportacao() {
                         "text/plain;charset=utf-8"
                 },
 
-                body: JSON.stringify(pedido)
+                body: JSON.stringify(
+                    pedido
+                )
             }
         );
 
@@ -227,7 +663,8 @@ async function confirmarImportacao() {
             );
         }
 
-        const dados = await resposta.json();
+        const dados =
+            await resposta.json();
 
         if (!dados.sucesso) {
             throw new Error(
@@ -241,6 +678,10 @@ async function confirmarImportacao() {
         );
 
         atualizarUltimaImportacao(
+            dados.resultado
+        );
+
+        atualizarDashboardAposImportacao(
             dados.resultado
         );
 
@@ -291,20 +732,23 @@ function processarFicheiro(ficheiro) {
                 evento.target.result
             );
 
-            const separador = detetarSeparador(
-                conteudo
-            );
+            const separador =
+                detetarSeparador(
+                    conteudo
+                );
 
-            const tabela = converterCsvEmTabela(
-                conteudo,
-                separador
-            );
+            const tabela =
+                converterCsvEmTabela(
+                    conteudo,
+                    separador
+                );
 
             validarTabela(tabela);
 
-            linhasCsv = converterTabelaEmObjetos(
-                tabela
-            );
+            linhasCsv =
+                converterTabelaEmObjetos(
+                    tabela
+                );
 
             if (linhasCsv.length === 0) {
                 throw new Error(
@@ -312,8 +756,14 @@ function processarFicheiro(ficheiro) {
                 );
             }
 
-            resumoCsv = calcularResumo(
-                linhasCsv
+            resumoCsv =
+                calcularResumo(
+                    linhasCsv
+                );
+
+            atualizarDataLocal(
+                linhasCsv,
+                resumoCsv
             );
 
             mostrarAnalise(
@@ -350,6 +800,31 @@ function processarFicheiro(ficheiro) {
 }
 
 
+function atualizarDataLocal(
+    linhas,
+    resumo
+) {
+    DATA.faturas = linhas;
+
+    DATA.dashboard = {
+        totalClientes:
+            resumo.totalClientes,
+
+        totalFaturas:
+            resumo.totalFaturas,
+
+        valorTotal:
+            resumo.valorTotal,
+
+        valorPendente:
+            resumo.valorPendente,
+
+        totalVencidas:
+            resumo.totalVencidas
+    };
+}
+
+
 /*
 |--------------------------------------------------------------------------
 | Validação
@@ -373,22 +848,28 @@ function validarTabela(tabela) {
         );
     }
 
-    const cabecalhos = tabela[0].map(
-        normalizarCabecalho
-    );
-
-    const cabecalhosEmFalta =
-        CABECALHOS_OBRIGATORIOS.filter(
-            function(cabecalhoObrigatorio) {
-                return !cabecalhos.includes(
-                    normalizarCabecalho(
-                        cabecalhoObrigatorio
-                    )
-                );
-            }
+    const cabecalhos =
+        tabela[0].map(
+            normalizarCabecalho
         );
 
-    if (cabecalhosEmFalta.length > 0) {
+    const cabecalhosEmFalta =
+        CABECALHOS_OBRIGATORIOS
+            .filter(
+                function(
+                    cabecalhoObrigatorio
+                ) {
+                    return !cabecalhos.includes(
+                        normalizarCabecalho(
+                            cabecalhoObrigatorio
+                        )
+                    );
+                }
+            );
+
+    if (
+        cabecalhosEmFalta.length > 0
+    ) {
         throw new Error(
             "Faltam estas colunas no CSV: " +
             cabecalhosEmFalta.join(", ")
@@ -432,9 +913,15 @@ function detetarSeparador(conteudo) {
                     separador
                 );
 
-            if (quantidade > maiorQuantidade) {
-                maiorQuantidade = quantidade;
-                melhorSeparador = separador;
+            if (
+                quantidade >
+                maiorQuantidade
+            ) {
+                maiorQuantidade =
+                    quantidade;
+
+                melhorSeparador =
+                    separador;
             }
         }
     );
@@ -455,7 +942,8 @@ function contarSeparadoresForaDeAspas(
         indice < linha.length;
         indice++
     ) {
-        const caractere = linha[indice];
+        const caractere =
+            linha[indice];
 
         if (caractere === "\"") {
             if (
@@ -499,8 +987,11 @@ function converterCsvEmTabela(
         indice < conteudo.length;
         indice++
     ) {
-        const caractere = conteudo[indice];
-        const seguinte = conteudo[indice + 1];
+        const caractere =
+            conteudo[indice];
+
+        const seguinte =
+            conteudo[indice + 1];
 
         if (caractere === "\"") {
             if (
@@ -556,7 +1047,9 @@ function converterCsvEmTabela(
                 );
 
             if (linhaTemConteudo) {
-                linhas.push(linhaAtual);
+                linhas.push(
+                    linhaAtual
+                );
             }
 
             linhaAtual = [];
@@ -579,15 +1072,21 @@ function converterCsvEmTabela(
             }
         );
 
-    if (ultimaLinhaTemConteudo) {
-        linhas.push(linhaAtual);
+    if (
+        ultimaLinhaTemConteudo
+    ) {
+        linhas.push(
+            linhaAtual
+        );
     }
 
     return linhas;
 }
 
 
-function converterTabelaEmObjetos(tabela) {
+function converterTabelaEmObjetos(
+    tabela
+) {
     const cabecalhosOriginais =
         tabela[0].map(
             function(cabecalho) {
@@ -598,46 +1097,65 @@ function converterTabelaEmObjetos(tabela) {
     const mapaCabecalhos = {};
 
     cabecalhosOriginais.forEach(
-        function(cabecalho, indice) {
+        function(
+            cabecalho,
+            indice
+        ) {
             mapaCabecalhos[
-                normalizarCabecalho(cabecalho)
+                normalizarCabecalho(
+                    cabecalho
+                )
             ] = indice;
         }
     );
 
     return tabela
         .slice(1)
-        .map(function(linha) {
-            const objeto = {};
+        .map(
+            function(linha) {
+                const objeto = {};
 
-            CABECALHOS_OBRIGATORIOS.forEach(
-                function(cabecalho) {
-                    const indice =
-                        mapaCabecalhos[
-                            normalizarCabecalho(
-                                cabecalho
-                            )
-                        ];
+                CABECALHOS_OBRIGATORIOS
+                    .forEach(
+                        function(
+                            cabecalho
+                        ) {
+                            const indice =
+                                mapaCabecalhos[
+                                    normalizarCabecalho(
+                                        cabecalho
+                                    )
+                                ];
 
-                    objeto[cabecalho] =
-                        indice !== undefined
-                            ? String(
-                                linha[indice] || ""
-                            ).trim()
-                            : "";
-                }
-            );
+                            objeto[cabecalho] =
+                                indice !==
+                                undefined
+                                    ? String(
+                                        linha[
+                                            indice
+                                        ] || ""
+                                    ).trim()
+                                    : "";
+                        }
+                    );
 
-            return objeto;
-        })
-        .filter(function(linha) {
-            return (
-                linha["N."] !== "" ||
-                linha["Nome"] !== "" ||
-                linha["Documento"] !== "" ||
-                linha["N.º Doc."] !== ""
-            );
-        });
+                return objeto;
+            }
+        )
+        .filter(
+            function(linha) {
+                return (
+                    linha["N."] !== "" ||
+                    linha["Nome"] !== "" ||
+                    linha[
+                        "Documento"
+                    ] !== "" ||
+                    linha[
+                        "N.º Doc."
+                    ] !== ""
+                );
+            }
+        );
 }
 
 
@@ -660,41 +1178,144 @@ function calcularResumo(linhas) {
 
     let valorTotal = 0;
     let valorPendente = 0;
+    let totalVencidas = 0;
 
-    linhas.forEach(function(linha) {
-        const identificadorCliente =
-            linha["N."] ||
-            linha["Nome"];
+    const hoje =
+        obterDataSemHoras(
+            new Date()
+        );
 
-        if (identificadorCliente) {
-            clientes.add(
+    linhas.forEach(
+        function(linha) {
+            const identificadorCliente =
+                linha["N."] ||
+                linha["Nome"];
+
+            if (
                 identificadorCliente
-                    .trim()
-                    .toUpperCase()
-            );
+            ) {
+                clientes.add(
+                    identificadorCliente
+                        .trim()
+                        .toUpperCase()
+                );
+            }
+
+            valorTotal +=
+                converterNumero(
+                    linha[
+                        "Valor Total"
+                    ]
+                );
+
+            const pendente =
+                converterNumero(
+                    linha[
+                        "Val. Pendente"
+                    ]
+                );
+
+            valorPendente +=
+                pendente;
+
+            const vencimento =
+                converterDataCsv(
+                    linha[
+                        "Dt. Venc."
+                    ]
+                );
+
+            if (
+                pendente > 0 &&
+                vencimento &&
+                vencimento < hoje
+            ) {
+                totalVencidas++;
+            }
         }
-
-        valorTotal += converterNumero(
-            linha["Valor Total"]
-        );
-
-        valorPendente += converterNumero(
-            linha["Val. Pendente"]
-        );
-    });
+    );
 
     return {
-        totalClientes: clientes.size,
-        totalFaturas: linhas.length,
+        totalClientes:
+            clientes.size,
 
-        valorTotal: arredondarMoeda(
-            valorTotal
-        ),
+        totalFaturas:
+            linhas.length,
 
-        valorPendente: arredondarMoeda(
-            valorPendente
-        )
+        totalVencidas:
+            totalVencidas,
+
+        valorTotal:
+            arredondarMoeda(
+                valorTotal
+            ),
+
+        valorPendente:
+            arredondarMoeda(
+                valorPendente
+            )
     };
+}
+
+
+function converterDataCsv(valor) {
+    const texto =
+        String(valor || "")
+            .trim();
+
+    if (!texto) {
+        return null;
+    }
+
+    const partes =
+        texto.split(/[\/\-.]/);
+
+    if (partes.length !== 3) {
+        return null;
+    }
+
+    let dia;
+    let mes;
+    let ano;
+
+    if (partes[0].length === 4) {
+        ano = Number(partes[0]);
+        mes = Number(partes[1]);
+        dia = Number(partes[2]);
+
+    } else {
+        dia = Number(partes[0]);
+        mes = Number(partes[1]);
+        ano = Number(partes[2]);
+    }
+
+    const data =
+        new Date(
+            ano,
+            mes - 1,
+            dia
+        );
+
+    if (
+        data.getFullYear() !== ano ||
+        data.getMonth() !== mes - 1 ||
+        data.getDate() !== dia
+    ) {
+        return null;
+    }
+
+    return obterDataSemHoras(
+        data
+    );
+}
+
+
+function obterDataSemHoras(data) {
+    return new Date(
+        data.getFullYear(),
+        data.getMonth(),
+        data.getDate()
+    );
 }
 
 
@@ -731,7 +1352,9 @@ function converterNumero(valor) {
             );
         }
 
-    } else if (texto.includes(",")) {
+    } else if (
+        texto.includes(",")
+    ) {
         texto = texto.replace(
             ",",
             "."
@@ -743,7 +1366,8 @@ function converterNumero(valor) {
         ""
     );
 
-    const numero = Number(texto);
+    const numero =
+        Number(texto);
 
     return Number.isFinite(numero)
         ? numero
@@ -772,57 +1396,66 @@ function mostrarAnalise(
     ficheiro,
     resumo
 ) {
-    ELEMENTOS.analysisSection.classList.add(
-        "visible"
+    ELEMENTOS.analysisSection
+        .classList.add(
+            "visible"
+        );
+
+    ELEMENTOS.analysisContent
+        .innerHTML = `
+            <div class="analysis-grid">
+
+                ${criarCartaoAnalise(
+                    "Ficheiro",
+                    escaparHtml(
+                        ficheiro.name
+                    )
+                )}
+
+                ${criarCartaoAnalise(
+                    "Clientes",
+                    formatarNumero(
+                        resumo.totalClientes
+                    )
+                )}
+
+                ${criarCartaoAnalise(
+                    "Faturas pendentes",
+                    formatarNumero(
+                        resumo.totalFaturas
+                    )
+                )}
+
+                ${criarCartaoAnalise(
+                    "Faturas vencidas",
+                    formatarNumero(
+                        resumo.totalVencidas
+                    )
+                )}
+
+                ${criarCartaoAnalise(
+                    "Valor total",
+                    formatarMoeda(
+                        resumo.valorTotal
+                    )
+                )}
+
+                ${criarCartaoAnalise(
+                    "Valor pendente",
+                    formatarMoeda(
+                        resumo.valorPendente
+                    )
+                )}
+
+            </div>
+        `;
+
+    definirTextoBotaoConfirmacao(
+        "Confirmar Importação"
     );
-
-    ELEMENTOS.analysisContent.innerHTML = `
-        <div style="
-            display:grid;
-            grid-template-columns:
-                repeat(auto-fit, minmax(180px, 1fr));
-            gap:14px;
-        ">
-            ${criarCartaoAnalise(
-                "Ficheiro",
-                escaparHtml(ficheiro.name)
-            )}
-
-            ${criarCartaoAnalise(
-                "Clientes",
-                formatarNumero(
-                    resumo.totalClientes
-                )
-            )}
-
-            ${criarCartaoAnalise(
-                "Faturas pendentes",
-                formatarNumero(
-                    resumo.totalFaturas
-                )
-            )}
-
-            ${criarCartaoAnalise(
-                "Valor total",
-                formatarMoeda(
-                    resumo.valorTotal
-                )
-            )}
-
-            ${criarCartaoAnalise(
-                "Valor pendente",
-                formatarMoeda(
-                    resumo.valorPendente
-                )
-            )}
-        </div>
-    `;
 
     ELEMENTOS.confirmImportBtn.disabled =
         false;
-
-    ELEMENTOS.confirmImportBtn.textContent =
-        "Confirmar Importação";
 }
 
 
@@ -831,31 +1464,16 @@ function criarCartaoAnalise(
     valor
 ) {
     return `
-        <div style="
-            padding:18px;
-            border:1px solid #e5e7eb;
-            border-radius:14px;
-            background:#ffffff;
-        ">
-            <div style="
-                margin-bottom:8px;
-                color:#6b7280;
-                font-size:12px;
-                font-weight:700;
-                text-transform:uppercase;
-                letter-spacing:0.05em;
-            ">
+        <div class="analysis-card">
+
+            <div class="analysis-card-label">
                 ${titulo}
             </div>
 
-            <div style="
-                color:#111827;
-                font-size:18px;
-                font-weight:800;
-                overflow-wrap:anywhere;
-            ">
+            <div class="analysis-card-value">
                 ${valor}
             </div>
+
         </div>
     `;
 }
@@ -871,176 +1489,152 @@ function mostrarEstadoImportacao(
     titulo,
     descricao
 ) {
-    ELEMENTOS.analysisSection.classList.add(
-        "visible"
-    );
+    ELEMENTOS.analysisSection
+        .classList.add(
+            "visible"
+        );
 
-    ELEMENTOS.analysisContent.innerHTML = `
-        <div style="
-            padding:28px;
-            border:1px solid #bfdbfe;
-            border-radius:16px;
-            background:#eff6ff;
-            text-align:center;
-        ">
-            <div style="
-                width:42px;
-                height:42px;
-                margin:0 auto 16px;
-                border:4px solid #bfdbfe;
-                border-top-color:#2563eb;
-                border-radius:50%;
-                animation:invoiceSpin 0.8s linear infinite;
-            "></div>
+    ELEMENTOS.analysisContent
+        .innerHTML = `
+            <div class="import-state loading">
 
-            <h3 style="
-                margin-bottom:8px;
-                color:#1e3a8a;
-                font-size:18px;
-            ">
-                ${escaparHtml(titulo)}
-            </h3>
+                <div class="import-spinner"></div>
 
-            <p style="
-                color:#475569;
-                font-size:14px;
-            ">
-                ${escaparHtml(descricao)}
-            </p>
-        </div>
+                <h3>
+                    ${escaparHtml(titulo)}
+                </h3>
 
-        <style>
-            @keyframes invoiceSpin {
-                to {
-                    transform:rotate(360deg);
-                }
-            }
-        </style>
-    `;
+                <p>
+                    ${escaparHtml(descricao)}
+                </p>
+
+            </div>
+        `;
 }
 
 
-function mostrarImportacaoConcluida(resultado) {
+function mostrarImportacaoConcluida(
+    resultado
+) {
     const diferenca =
-        Number(resultado.diferencaValorPendente || 0);
+        Number(
+            resultado
+                .diferencaValorPendente ||
+            0
+        );
 
     const textoDiferenca =
         diferenca > 0
-            ? "+" + formatarMoeda(diferenca)
-            : formatarMoeda(diferenca);
+            ? "+" +
+                formatarMoeda(
+                    diferenca
+                )
+            : formatarMoeda(
+                diferenca
+            );
 
-    ELEMENTOS.analysisSection.classList.add(
-        "visible"
+    ELEMENTOS.analysisSection
+        .classList.add(
+            "visible"
+        );
+
+    ELEMENTOS.analysisContent
+        .innerHTML = `
+            <div class="import-state success">
+
+                <div class="success-heading">
+
+                    <div class="success-check">
+                        <i data-lucide="check"></i>
+                    </div>
+
+                    <div>
+
+                        <h3>
+                            Importação concluída
+                        </h3>
+
+                        <p>
+                            ${escaparHtml(
+                                resultado
+                                    .idImportacao
+                            )}
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <div class="result-grid">
+
+                    ${criarCartaoResultado(
+                        "Clientes",
+                        formatarNumero(
+                            resultado
+                                .totalClientes
+                        )
+                    )}
+
+                    ${criarCartaoResultado(
+                        "Faturas",
+                        formatarNumero(
+                            resultado
+                                .totalFaturas
+                        )
+                    )}
+
+                    ${criarCartaoResultado(
+                        "Novas",
+                        formatarNumero(
+                            resultado
+                                .novasFaturas
+                        )
+                    )}
+
+                    ${criarCartaoResultado(
+                        "Liquidadas",
+                        formatarNumero(
+                            resultado
+                                .liquidadas
+                        )
+                    )}
+
+                    ${criarCartaoResultado(
+                        "Pagamentos parciais",
+                        formatarNumero(
+                            resultado
+                                .pagamentosParciais
+                        )
+                    )}
+
+                    ${criarCartaoResultado(
+                        "Valor pendente",
+                        formatarMoeda(
+                            resultado
+                                .valorPendente
+                        )
+                    )}
+
+                    ${criarCartaoResultado(
+                        "Diferença",
+                        textoDiferenca
+                    )}
+
+                </div>
+
+            </div>
+        `;
+
+    definirTextoBotaoConfirmacao(
+        "Importação concluída"
     );
-
-    ELEMENTOS.analysisContent.innerHTML = `
-        <div style="
-            padding:22px;
-            border:1px solid #bbf7d0;
-            border-radius:16px;
-            background:#f0fdf4;
-        ">
-            <div style="
-                display:flex;
-                align-items:center;
-                gap:12px;
-                margin-bottom:20px;
-            ">
-                <div style="
-                    width:46px;
-                    height:46px;
-                    display:grid;
-                    place-items:center;
-                    border-radius:50%;
-                    background:#16a34a;
-                    color:white;
-                    font-size:24px;
-                    font-weight:800;
-                ">
-                    ✓
-                </div>
-
-                <div>
-                    <h3 style="
-                        color:#166534;
-                        font-size:19px;
-                    ">
-                        Importação concluída
-                    </h3>
-
-                    <p style="
-                        margin-top:3px;
-                        color:#15803d;
-                        font-size:13px;
-                    ">
-                        ${escaparHtml(
-                            resultado.idImportacao
-                        )}
-                    </p>
-                </div>
-            </div>
-
-            <div style="
-                display:grid;
-                grid-template-columns:
-                    repeat(auto-fit, minmax(160px, 1fr));
-                gap:12px;
-            ">
-                ${criarCartaoResultado(
-                    "Clientes",
-                    formatarNumero(
-                        resultado.totalClientes
-                    )
-                )}
-
-                ${criarCartaoResultado(
-                    "Faturas",
-                    formatarNumero(
-                        resultado.totalFaturas
-                    )
-                )}
-
-                ${criarCartaoResultado(
-                    "Novas",
-                    formatarNumero(
-                        resultado.novasFaturas
-                    )
-                )}
-
-                ${criarCartaoResultado(
-                    "Liquidadas",
-                    formatarNumero(
-                        resultado.liquidadas
-                    )
-                )}
-
-                ${criarCartaoResultado(
-                    "Pagamentos parciais",
-                    formatarNumero(
-                        resultado.pagamentosParciais
-                    )
-                )}
-
-                ${criarCartaoResultado(
-                    "Valor pendente",
-                    formatarMoeda(
-                        resultado.valorPendente
-                    )
-                )}
-
-                ${criarCartaoResultado(
-                    "Diferença",
-                    textoDiferenca
-                )}
-            </div>
-        </div>
-    `;
-
-    ELEMENTOS.confirmImportBtn.textContent =
-        "Importação concluída";
 
     ELEMENTOS.confirmImportBtn.disabled =
         true;
+
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
 }
 
 
@@ -1049,88 +1643,134 @@ function criarCartaoResultado(
     valor
 ) {
     return `
-        <div style="
-            padding:15px;
-            border:1px solid #dcfce7;
-            border-radius:13px;
-            background:#ffffff;
-        ">
-            <div style="
-                margin-bottom:6px;
-                color:#64748b;
-                font-size:11px;
-                font-weight:800;
-                text-transform:uppercase;
-                letter-spacing:0.05em;
-            ">
+        <div class="result-card">
+
+            <div class="result-card-label">
                 ${titulo}
             </div>
 
-            <div style="
-                color:#14532d;
-                font-size:17px;
-                font-weight:800;
-                overflow-wrap:anywhere;
-            ">
+            <div class="result-card-value">
                 ${valor}
             </div>
+
         </div>
     `;
 }
 
 
-function mostrarErroImportacao(mensagem) {
-    ELEMENTOS.analysisSection.classList.add(
-        "visible"
-    );
+function mostrarErroImportacao(
+    mensagem
+) {
+    ELEMENTOS.analysisSection
+        .classList.add(
+            "visible"
+        );
 
-    ELEMENTOS.analysisContent.innerHTML = `
-        <div style="
-            padding:22px;
-            border:1px solid #fecaca;
-            border-radius:16px;
-            background:#fef2f2;
-            color:#991b1b;
-        ">
-            <h3 style="
-                margin-bottom:8px;
-                font-size:18px;
-            ">
-                Erro na importação
-            </h3>
+    ELEMENTOS.analysisContent
+        .innerHTML = `
+            <div class="import-state error">
 
-            <p style="
-                font-size:14px;
-                line-height:1.6;
-            ">
-                ${escaparHtml(mensagem)}
-            </p>
-        </div>
-    `;
+                <h3>
+                    Erro na importação
+                </h3>
+
+                <p>
+                    ${escaparHtml(
+                        mensagem
+                    )}
+                </p>
+
+            </div>
+        `;
 
     ELEMENTOS.confirmImportBtn.disabled =
         false;
 
-    ELEMENTOS.confirmImportBtn.textContent =
-        "Tentar novamente";
+    definirTextoBotaoConfirmacao(
+        "Tentar novamente"
+    );
 }
 
 
-function atualizarUltimaImportacao(resultado) {
+function atualizarUltimaImportacao(
+    resultado
+) {
     ELEMENTOS.lastImport.innerHTML = `
-        <strong>Última importação</strong>
+        <div class="last-import-icon">
+            <i data-lucide="history"></i>
+        </div>
 
-        <p>
-            ${escaparHtml(
-                resultado.dataImportacao
-            )}
-            ·
-            ${formatarNumero(
-                resultado.totalFaturas
-            )}
-            faturas
-        </p>
+        <div>
+
+            <strong>
+                Última importação
+            </strong>
+
+            <p>
+                ${escaparHtml(
+                    resultado
+                        .dataImportacao
+                )}
+                ·
+                ${formatarNumero(
+                    resultado
+                        .totalFaturas
+                )}
+                faturas
+            </p>
+
+        </div>
     `;
+
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+}
+
+
+function atualizarDashboardAposImportacao(
+    resultado
+) {
+    ELEMENTOS.kpiClientes.textContent =
+        formatarNumero(
+            resultado.totalClientes ??
+            DATA.dashboard.totalClientes
+        );
+
+    ELEMENTOS.kpiFaturas.textContent =
+        formatarNumero(
+            resultado.totalFaturas ??
+            DATA.dashboard.totalFaturas
+        );
+
+    ELEMENTOS.kpiValorPendente.textContent =
+        formatarMoeda(
+            resultado.valorPendente ??
+            DATA.dashboard.valorPendente
+        );
+
+    ELEMENTOS.kpiVencidas.textContent =
+        formatarNumero(
+            DATA.dashboard.totalVencidas
+        );
+
+    ELEMENTOS.dashboardLastImport
+        .innerHTML = `
+            <i data-lucide="clock-3"></i>
+
+            <span>
+                Atualizado em
+                ${escaparHtml(
+                    resultado
+                        .dataImportacao ||
+                    "agora"
+                )}
+            </span>
+        `;
+
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
 }
 
 
@@ -1138,8 +1778,9 @@ function bloquearInterfaceImportacao() {
     ELEMENTOS.confirmImportBtn.disabled =
         true;
 
-    ELEMENTOS.confirmImportBtn.textContent =
-        "A importar...";
+    definirTextoBotaoConfirmacao(
+        "A importar..."
+    );
 
     ELEMENTOS.selectFileBtn.disabled =
         true;
@@ -1170,6 +1811,27 @@ function desbloquearInterfaceImportacao() {
 }
 
 
+function definirTextoBotaoConfirmacao(
+    texto
+) {
+    const span =
+        ELEMENTOS.confirmImportBtn
+            .querySelector(
+                "span"
+            );
+
+    if (span) {
+        span.textContent =
+            texto;
+
+    } else {
+        ELEMENTOS.confirmImportBtn
+            .textContent =
+            texto;
+    }
+}
+
+
 function limparFicheiroSelecionado() {
     ficheiroSelecionado = null;
     linhasCsv = [];
@@ -1197,37 +1859,20 @@ function atualizarEstadoLigacao(
         <span
             class="status-dot"
             style="
-                background:${obterCorEstado(tipo)};
+                background:
+                    ${obterCorEstado(tipo)};
                 box-shadow:
                     0 0 0 4px
                     ${obterSombraEstado(tipo)};
-            "
-        ></span>
+            ">
+        </span>
 
-        <span>${escaparHtml(textoEstado)}</span>
+        <span>
+            ${escaparHtml(
+                textoEstado
+            )}
+        </span>
     `;
-
-    if (tipo === "offline") {
-        ELEMENTOS.status.style.background =
-            "#fef2f2";
-
-        ELEMENTOS.status.style.color =
-            "#991b1b";
-
-    } else if (tipo === "loading") {
-        ELEMENTOS.status.style.background =
-            "#fffbeb";
-
-        ELEMENTOS.status.style.color =
-            "#92400e";
-
-    } else {
-        ELEMENTOS.status.style.background =
-            "#f0fdf4";
-
-        ELEMENTOS.status.style.color =
-            "#166534";
-    }
 }
 
 
@@ -1264,22 +1909,27 @@ function obterSombraEstado(tipo) {
 */
 
 function mostrarErro(mensagem) {
-    ELEMENTOS.analysisSection.classList.add(
-        "visible"
-    );
+    ELEMENTOS.analysisSection
+        .classList.add(
+            "visible"
+        );
 
-    ELEMENTOS.analysisContent.innerHTML = `
-        <div style="
-            padding:18px;
-            border:1px solid #fecaca;
-            border-radius:14px;
-            background:#fef2f2;
-            color:#991b1b;
-            font-weight:600;
-        ">
-            ${escaparHtml(mensagem)}
-        </div>
-    `;
+    ELEMENTOS.analysisContent
+        .innerHTML = `
+            <div class="import-state error">
+
+                <h3>
+                    Ficheiro inválido
+                </h3>
+
+                <p>
+                    ${escaparHtml(
+                        mensagem
+                    )}
+                </p>
+
+            </div>
+        `;
 
     ELEMENTOS.confirmImportBtn.disabled =
         true;
@@ -1287,18 +1937,21 @@ function mostrarErro(mensagem) {
 
 
 function limparAnalise() {
-    ELEMENTOS.analysisSection.classList.remove(
-        "visible"
-    );
+    ELEMENTOS.analysisSection
+        .classList.remove(
+            "visible"
+        );
 
-    ELEMENTOS.analysisContent.innerHTML =
+    ELEMENTOS.analysisContent
+        .innerHTML =
         "À espera de um ficheiro CSV...";
 
     ELEMENTOS.confirmImportBtn.disabled =
         true;
 
-    ELEMENTOS.confirmImportBtn.textContent =
-        "Confirmar Importação";
+    definirTextoBotaoConfirmacao(
+        "Confirmar Importação"
+    );
 }
 
 
