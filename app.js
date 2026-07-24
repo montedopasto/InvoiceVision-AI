@@ -24,7 +24,8 @@ const DATA = {
 
     alertas: [],
     insights: [],
-    rankings: {}
+    rankings: {},
+    historicoEvolucao: []
 };
 
 
@@ -89,6 +90,8 @@ let ficheiroSelecionado = null;
 let linhasCsv = [];
 let resumoCsv = null;
 let importacaoEmCurso = false;
+let graficoEvolucao = null;
+let promessaChartJs = null;
 
 
 /*
@@ -427,6 +430,23 @@ function alternarTema() {
             ? "light"
             : "dark"
     );
+
+
+    if (
+        Array.isArray(
+            DATA.historicoEvolucao
+        ) &&
+        DATA.historicoEvolucao.length > 0
+    ) {
+        window.setTimeout(
+            function() {
+                renderizarGraficoEvolucao(
+                    DATA.historicoEvolucao
+                );
+            },
+            50
+        );
+    }
 }
 
 
@@ -809,6 +829,13 @@ function aplicarDadosAplicacao(dados) {
                 : []
     };
 
+    DATA.historicoEvolucao =
+        Array.isArray(
+            dados.historicoEvolucao
+        )
+            ? dados.historicoEvolucao
+            : [];
+
     renderizarDashboard(
         dados.ultimaImportacao || null
     );
@@ -818,6 +845,10 @@ function aplicarDadosAplicacao(dados) {
     );
 
     renderizarAlertasDashboard();
+
+    renderizarGraficoEvolucao(
+        DATA.historicoEvolucao
+    );
 }
 
 
@@ -901,6 +932,565 @@ function renderizarDashboard(
     if (window.lucide) {
         window.lucide.createIcons();
     }
+}
+
+
+async function renderizarGraficoEvolucao(
+    historico
+) {
+    const painel =
+        document.querySelector(
+            ".dashboard-grid .panel-large"
+        );
+
+    if (!painel) {
+        return;
+    }
+
+    const zonaAtual =
+        painel.querySelector(
+            ".empty-visual, .chart-container"
+        );
+
+    if (
+        !Array.isArray(historico) ||
+        historico.length === 0
+    ) {
+        if (graficoEvolucao) {
+            graficoEvolucao.destroy();
+            graficoEvolucao = null;
+        }
+
+        if (zonaAtual) {
+            zonaAtual.outerHTML = `
+                <div class="empty-visual">
+
+                    <div class="empty-visual-icon">
+                        <i data-lucide="chart-no-axes-combined"></i>
+                    </div>
+
+                    <strong>
+                        Ainda não existe histórico
+                    </strong>
+
+                    <p>
+                        O gráfico ficará disponível após existirem importações registadas na folha IMPORTACOES.
+                    </p>
+
+                </div>
+            `;
+        }
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+
+        return;
+    }
+
+    if (
+        !zonaAtual ||
+        !zonaAtual.classList.contains(
+            "chart-container"
+        )
+    ) {
+        zonaAtual.outerHTML = `
+            <div
+                class="chart-container"
+                style="
+                    position:relative;
+                    width:100%;
+                    height:285px;
+                    min-height:285px;
+                    margin-top:18px;
+                ">
+
+                <canvas
+                    id="evolucaoPendenteChart"
+                    aria-label="Evolução do valor pendente"
+                    role="img">
+                </canvas>
+
+            </div>
+        `;
+    }
+
+    try {
+        await carregarChartJs();
+    } catch (erro) {
+        console.error(
+            "Erro ao carregar Chart.js:",
+            erro
+        );
+
+        const container =
+            painel.querySelector(
+                ".chart-container"
+            );
+
+        if (container) {
+            container.outerHTML = `
+                <div class="empty-visual">
+
+                    <div class="empty-visual-icon">
+                        <i data-lucide="triangle-alert"></i>
+                    </div>
+
+                    <strong>
+                        Não foi possível carregar o gráfico
+                    </strong>
+
+                    <p>
+                        Atualiza a página para voltar a tentar.
+                    </p>
+
+                </div>
+            `;
+        }
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+
+        return;
+    }
+
+    const canvas =
+        document.getElementById(
+            "evolucaoPendenteChart"
+        );
+
+    if (!canvas) {
+        return;
+    }
+
+    if (graficoEvolucao) {
+        graficoEvolucao.destroy();
+    }
+
+    const estilos =
+        getComputedStyle(
+            document.documentElement
+        );
+
+    const corTexto =
+        estilos.getPropertyValue(
+            "--muted"
+        ).trim() || "#94a3b8";
+
+    const corLinha =
+        estilos.getPropertyValue(
+            "--primary"
+        ).trim() || "#10b981";
+
+    const corGrelha =
+        estilos.getPropertyValue(
+            "--border"
+        ).trim() || "rgba(148,163,184,.15)";
+
+    const labels = historico.map(
+        function(item) {
+            return formatarDataGrafico(
+                item.dataImportacao
+            );
+        }
+    );
+
+    const valores = historico.map(
+        function(item) {
+            return Number(
+                item.valorPendente || 0
+            );
+        }
+    );
+
+    graficoEvolucao =
+        new window.Chart(
+            canvas.getContext("2d"),
+            {
+                type: "line",
+
+                data: {
+                    labels: labels,
+
+                    datasets: [
+                        {
+                            label:
+                                "Valor pendente",
+
+                            data: valores,
+
+                            borderColor:
+                                corLinha,
+
+                            backgroundColor:
+                                criarGradienteGrafico(
+                                    canvas,
+                                    corLinha
+                                ),
+
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius:
+                                historico.length > 16
+                                    ? 2
+                                    : 4,
+
+                            pointHoverRadius: 6,
+                            pointBackgroundColor:
+                                corLinha,
+
+                            pointBorderWidth: 0
+                        }
+                    ]
+                },
+
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    interaction: {
+                        mode: "index",
+                        intersect: false
+                    },
+
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+
+                        tooltip: {
+                            displayColors: false,
+
+                            callbacks: {
+                                title:
+                                    function(contexto) {
+                                        const indice =
+                                            contexto[0]
+                                                .dataIndex;
+
+                                        return (
+                                            historico[
+                                                indice
+                                            ]
+                                                .dataImportacao ||
+                                            ""
+                                        );
+                                    },
+
+                                label:
+                                    function(contexto) {
+                                        return (
+                                            " Valor pendente: " +
+                                            formatarMoeda(
+                                                contexto.parsed.y
+                                            )
+                                        );
+                                    },
+
+                                afterLabel:
+                                    function(contexto) {
+                                        const item =
+                                            historico[
+                                                contexto
+                                                    .dataIndex
+                                            ];
+
+                                        return [
+                                            " Faturas: " +
+                                                formatarNumero(
+                                                    item.totalFaturas ||
+                                                    0
+                                                ),
+
+                                            " Clientes: " +
+                                                formatarNumero(
+                                                    item.totalClientes ||
+                                                    0
+                                                )
+                                        ];
+                                    }
+                            }
+                        }
+                    },
+
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+
+                            ticks: {
+                                color: corTexto,
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 7,
+                                font: {
+                                    size: 10,
+                                    family: "Inter"
+                                }
+                            },
+
+                            border: {
+                                display: false
+                            }
+                        },
+
+                        y: {
+                            beginAtZero: false,
+
+                            grid: {
+                                color: corGrelha,
+                                drawTicks: false
+                            },
+
+                            ticks: {
+                                color: corTexto,
+                                padding: 10,
+
+                                callback:
+                                    function(valor) {
+                                        return formatarMoedaCompacta(
+                                            valor
+                                        );
+                                    },
+
+                                font: {
+                                    size: 10,
+                                    family: "Inter"
+                                }
+                            },
+
+                            border: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            }
+        );
+}
+
+
+function carregarChartJs() {
+    if (window.Chart) {
+        return Promise.resolve(
+            window.Chart
+        );
+    }
+
+    if (promessaChartJs) {
+        return promessaChartJs;
+    }
+
+    promessaChartJs =
+        new Promise(
+            function(resolve, reject) {
+                const script =
+                    document.createElement(
+                        "script"
+                    );
+
+                script.src =
+                    "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js";
+
+                script.onload =
+                    function() {
+                        resolve(
+                            window.Chart
+                        );
+                    };
+
+                script.onerror =
+                    function() {
+                        promessaChartJs = null;
+
+                        reject(
+                            new Error(
+                                "Falha ao carregar Chart.js."
+                            )
+                        );
+                    };
+
+                document.head.appendChild(
+                    script
+                );
+            }
+        );
+
+    return promessaChartJs;
+}
+
+
+function criarGradienteGrafico(
+    canvas,
+    cor
+) {
+    const contexto =
+        canvas.getContext("2d");
+
+    const gradiente =
+        contexto.createLinearGradient(
+            0,
+            0,
+            0,
+            canvas.clientHeight || 285
+        );
+
+    gradiente.addColorStop(
+        0,
+        converterCorParaRgba(
+            cor,
+            0.30
+        )
+    );
+
+    gradiente.addColorStop(
+        1,
+        converterCorParaRgba(
+            cor,
+            0.01
+        )
+    );
+
+    return gradiente;
+}
+
+
+function converterCorParaRgba(
+    cor,
+    opacidade
+) {
+    if (
+        typeof cor === "string" &&
+        cor.trim().startsWith("#")
+    ) {
+        let hexadecimal =
+            cor.trim().slice(1);
+
+        if (hexadecimal.length === 3) {
+            hexadecimal =
+                hexadecimal
+                    .split("")
+                    .map(
+                        function(caractere) {
+                            return (
+                                caractere +
+                                caractere
+                            );
+                        }
+                    )
+                    .join("");
+        }
+
+        if (hexadecimal.length === 6) {
+            const vermelho =
+                parseInt(
+                    hexadecimal.slice(0, 2),
+                    16
+                );
+
+            const verde =
+                parseInt(
+                    hexadecimal.slice(2, 4),
+                    16
+                );
+
+            const azul =
+                parseInt(
+                    hexadecimal.slice(4, 6),
+                    16
+                );
+
+            return (
+                "rgba(" +
+                vermelho +
+                "," +
+                verde +
+                "," +
+                azul +
+                "," +
+                opacidade +
+                ")"
+            );
+        }
+    }
+
+    return (
+        "rgba(16,185,129," +
+        opacidade +
+        ")"
+    );
+}
+
+
+function formatarDataGrafico(
+    valor
+) {
+    const textoData =
+        String(valor || "").trim();
+
+    if (!textoData) {
+        return "—";
+    }
+
+    const correspondencia =
+        textoData.match(
+            /^(\d{2})\/(\d{2})\/(\d{4})/
+        );
+
+    if (correspondencia) {
+        return (
+            correspondencia[1] +
+            "/" +
+            correspondencia[2]
+        );
+    }
+
+    return textoData;
+}
+
+
+function formatarMoedaCompacta(
+    valor
+) {
+    const numero =
+        Number(valor || 0);
+
+    if (
+        Math.abs(numero) >= 1000000
+    ) {
+        return (
+            new Intl.NumberFormat(
+                "pt-PT",
+                {
+                    maximumFractionDigits: 1
+                }
+            ).format(
+                numero / 1000000
+            ) +
+            " M€"
+        );
+    }
+
+    if (
+        Math.abs(numero) >= 1000
+    ) {
+        return (
+            new Intl.NumberFormat(
+                "pt-PT",
+                {
+                    maximumFractionDigits: 0
+                }
+            ).format(
+                numero / 1000
+            ) +
+            " mil €"
+        );
+    }
+
+    return formatarMoeda(numero);
 }
 
 
