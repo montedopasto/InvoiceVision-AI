@@ -417,24 +417,31 @@
                         <div class="panel-header">
 
                             <div>
-                                <span class="panel-eyebrow">Inteligência</span>
-                                <h3>AI Insights</h3>
+                                <span class="panel-eyebrow">Risco</span>
+                                <h3>Antiguidade da dívida vencida</h3>
                             </div>
 
-                            <div class="panel-icon ai-icon">
-                                <i data-lucide="sparkles"></i>
+                            <div class="panel-icon amber-icon">
+                                <i data-lucide="calendar-clock"></i>
                             </div>
 
                         </div>
 
-                        <div class="insight-placeholder">
+                        <div
+                            id="agingChartArea"
+                            class="dashboard-chart-area compact-chart-area">
 
-                            <i data-lucide="brain-circuit"></i>
+                            <canvas
+                                id="agingDebtChart"
+                                aria-label="Antiguidade da dívida vencida"
+                                role="img">
+                            </canvas>
 
-                            <p>
-                                Aqui aparecerão conclusões automáticas sobre concentração de dívida, aumentos e reduções.
-                            </p>
+                        </div>
 
+                        <div
+                            id="agingLegend"
+                            class="aging-legend">
                         </div>
 
                     </article>
@@ -444,8 +451,8 @@
                         <div class="panel-header">
 
                             <div>
-                                <span class="panel-eyebrow">Ranking</span>
-                                <h3>Top Clientes</h3>
+                                <span class="panel-eyebrow">Concentração</span>
+                                <h3>Top 10 Clientes</h3>
                             </div>
 
                             <button
@@ -460,16 +467,54 @@
 
                         </div>
 
-                        <div class="table-placeholder">
-                            <div class="table-placeholder-row"></div>
-                            <div class="table-placeholder-row"></div>
-                            <div class="table-placeholder-row"></div>
-                            <div class="table-placeholder-row"></div>
+                        <div
+                            id="topClientsChartArea"
+                            class="dashboard-chart-area top-clients-chart-area">
+
+                            <canvas
+                                id="topClientsChart"
+                                aria-label="Top 10 clientes por valor pendente"
+                                role="img">
+                            </canvas>
+
                         </div>
 
                     </article>
 
                 </div>
+
+                <article class="panel ai-insights-panel">
+
+                    <div class="panel-header">
+
+                        <div>
+                            <span class="panel-eyebrow">AI Intelligence</span>
+                            <h3>Leitura automática da carteira</h3>
+                        </div>
+
+                        <div class="panel-icon ai-icon">
+                            <i data-lucide="sparkles"></i>
+                        </div>
+
+                    </div>
+
+                    <div
+                        id="aiInsightsGrid"
+                        class="ai-insights-grid">
+
+                        <div class="ai-insight-card loading">
+                            <div class="ai-insight-icon">
+                                <i data-lucide="loader-circle"></i>
+                            </div>
+                            <div>
+                                <strong>A analisar os dados</strong>
+                                <p>As conclusões serão apresentadas automaticamente.</p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </article>
 
             </section>
 

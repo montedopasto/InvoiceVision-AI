@@ -91,6 +91,8 @@ let linhasCsv = [];
 let resumoCsv = null;
 let importacaoEmCurso = false;
 let graficoEvolucao = null;
+let graficoAging = null;
+let graficoTopClientes = null;
 let promessaChartJs = null;
 
 
@@ -442,6 +444,14 @@ function alternarTema() {
             function() {
                 renderizarGraficoEvolucao(
                     DATA.historicoEvolucao
+                );
+
+                renderizarGraficoAntiguidade(
+                    DATA.faturas
+                );
+
+                renderizarGraficoTopClientes(
+                    DATA.rankings.clientes || []
                 );
             },
             50
@@ -840,13 +850,23 @@ function aplicarDadosAplicacao(dados) {
         dados.ultimaImportacao || null
     );
 
-    renderizarRankingClientes(
-        DATA.rankings.clientes
-    );
-
     renderizarAlertasDashboard();
 
     renderizarGraficoEvolucao(
+        DATA.historicoEvolucao
+    );
+
+    renderizarGraficoAntiguidade(
+        DATA.faturas
+    );
+
+    renderizarGraficoTopClientes(
+        DATA.rankings.clientes
+    );
+
+    renderizarInsightsAutomaticos(
+        DATA.faturas,
+        DATA.rankings.clientes,
         DATA.historicoEvolucao
     );
 }
@@ -1535,6 +1555,1035 @@ function mostrarErroCarregamentoDashboard(
     if (window.lucide) {
         window.lucide.createIcons();
     }
+}
+
+
+async function renderizarGraficoAntiguidade(
+    faturas
+) {
+    const area =
+        document.getElementById(
+            "agingChartArea"
+        );
+
+    const legenda =
+        document.getElementById(
+            "agingLegend"
+        );
+
+    if (!area || !legenda) {
+        return;
+    }
+
+    const aging =
+        calcularAntiguidadeDivida(
+            faturas
+        );
+
+    const totalVencido =
+        aging.reduce(
+            function(total, item) {
+                return total + item.valor;
+            },
+            0
+        );
+
+    if (totalVencido <= 0) {
+        if (graficoAging) {
+            graficoAging.destroy();
+            graficoAging = null;
+        }
+
+        area.innerHTML = `
+            <div class="chart-empty-state">
+                <i data-lucide="circle-check-big"></i>
+                <strong>Sem dívida vencida</strong>
+                <p>Não existem valores pendentes com data de vencimento ultrapassada.</p>
+            </div>
+        `;
+
+        legenda.innerHTML = "";
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+
+        return;
+    }
+
+    if (
+        !document.getElementById(
+            "agingDebtChart"
+        )
+    ) {
+        area.innerHTML = `
+            <canvas
+                id="agingDebtChart"
+                aria-label="Antiguidade da dívida vencida"
+                role="img">
+            </canvas>
+        `;
+    }
+
+    await carregarChartJs();
+
+    const canvas =
+        document.getElementById(
+            "agingDebtChart"
+        );
+
+    if (!canvas) {
+        return;
+    }
+
+    if (graficoAging) {
+        graficoAging.destroy();
+    }
+
+    const cores = [
+        "#22c55e",
+        "#f59e0b",
+        "#f97316",
+        "#ef4444"
+    ];
+
+    graficoAging =
+        new window.Chart(
+            canvas.getContext("2d"),
+            {
+                type: "doughnut",
+
+                data: {
+                    labels:
+                        aging.map(
+                            function(item) {
+                                return item.label;
+                            }
+                        ),
+
+                    datasets: [
+                        {
+                            data:
+                                aging.map(
+                                    function(item) {
+                                        return item.valor;
+                                    }
+                                ),
+
+                            backgroundColor:
+                                cores,
+
+                            borderWidth: 0,
+                            hoverOffset: 6
+                        }
+                    ]
+                },
+
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: "70%",
+
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+
+                        tooltip: {
+                            displayColors: true,
+
+                            callbacks: {
+                                label:
+                                    function(contexto) {
+                                        const valor =
+                                            Number(
+                                                contexto.raw || 0
+                                            );
+
+                                        const percentagem =
+                                            totalVencido > 0
+                                                ? (
+                                                    valor /
+                                                    totalVencido
+                                                ) * 100
+                                                : 0;
+
+                                        return (
+                                            " " +
+                                            contexto.label +
+                                            ": " +
+                                            formatarMoeda(
+                                                valor
+                                            ) +
+                                            " (" +
+                                            percentagem.toFixed(
+                                                1
+                                            ) +
+                                            "%)"
+                                        );
+                                    }
+                            }
+                        }
+                    }
+                },
+
+                plugins: [
+                    {
+                        id:
+                            "textoCentroAging",
+
+                        afterDraw:
+                            function(grafico) {
+                                const contexto =
+                                    grafico.ctx;
+
+                                const areaGrafico =
+                                    grafico.chartArea;
+
+                                if (!areaGrafico) {
+                                    return;
+                                }
+
+                                const centroX =
+                                    (
+                                        areaGrafico.left +
+                                        areaGrafico.right
+                                    ) / 2;
+
+                                const centroY =
+                                    (
+                                        areaGrafico.top +
+                                        areaGrafico.bottom
+                                    ) / 2;
+
+                                contexto.save();
+                                contexto.textAlign =
+                                    "center";
+
+                                contexto.fillStyle =
+                                    getComputedStyle(
+                                        document.documentElement
+                                    )
+                                        .getPropertyValue(
+                                            "--muted"
+                                        )
+                                        .trim();
+
+                                contexto.font =
+                                    "600 10px Inter";
+
+                                contexto.fillText(
+                                    "Total vencido",
+                                    centroX,
+                                    centroY - 9
+                                );
+
+                                contexto.fillStyle =
+                                    getComputedStyle(
+                                        document.documentElement
+                                    )
+                                        .getPropertyValue(
+                                            "--text"
+                                        )
+                                        .trim();
+
+                                contexto.font =
+                                    "800 15px Inter";
+
+                                contexto.fillText(
+                                    formatarMoedaCompacta(
+                                        totalVencido
+                                    ),
+                                    centroX,
+                                    centroY + 14
+                                );
+
+                                contexto.restore();
+                            }
+                    }
+                ]
+            }
+        );
+
+    legenda.innerHTML =
+        aging.map(
+            function(item, indice) {
+                return `
+                    <div class="aging-legend-item">
+
+                        <div class="aging-legend-label">
+
+                            <span
+                                class="aging-legend-dot"
+                                style="background:${cores[indice]};">
+                            </span>
+
+                            <span>
+                                ${escaparHtml(item.label)}
+                            </span>
+
+                        </div>
+
+                        <span class="aging-legend-value">
+                            ${formatarMoedaCompacta(
+                                item.valor
+                            )}
+                        </span>
+
+                    </div>
+                `;
+            }
+        ).join("");
+}
+
+
+function calcularAntiguidadeDivida(
+    faturas
+) {
+    const grupos = [
+        {
+            label: "0–30 dias",
+            minimo: 0,
+            maximo: 30,
+            valor: 0,
+            quantidade: 0
+        },
+        {
+            label: "31–60 dias",
+            minimo: 31,
+            maximo: 60,
+            valor: 0,
+            quantidade: 0
+        },
+        {
+            label: "61–90 dias",
+            minimo: 61,
+            maximo: 90,
+            valor: 0,
+            quantidade: 0
+        },
+        {
+            label: "+90 dias",
+            minimo: 91,
+            maximo: Infinity,
+            valor: 0,
+            quantidade: 0
+        }
+    ];
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    (Array.isArray(faturas)
+        ? faturas
+        : []
+    ).forEach(
+        function(fatura) {
+            const vencimento =
+                converterDataFrontend(
+                    fatura.dataVencimento
+                );
+
+            const valor =
+                Number(
+                    fatura.valorPendente || 0
+                );
+
+            if (
+                !vencimento ||
+                valor <= 0 ||
+                vencimento >= hoje
+            ) {
+                return;
+            }
+
+            const dias =
+                Math.floor(
+                    (
+                        hoje.getTime() -
+                        vencimento.getTime()
+                    ) /
+                    86400000
+                );
+
+            const grupo =
+                grupos.find(
+                    function(item) {
+                        return (
+                            dias >= item.minimo &&
+                            dias <= item.maximo
+                        );
+                    }
+                );
+
+            if (grupo) {
+                grupo.valor += valor;
+                grupo.quantidade++;
+            }
+        }
+    );
+
+    return grupos;
+}
+
+
+async function renderizarGraficoTopClientes(
+    clientes
+) {
+    const area =
+        document.getElementById(
+            "topClientsChartArea"
+        );
+
+    if (!area) {
+        return;
+    }
+
+    const ranking =
+        (
+            Array.isArray(clientes)
+                ? clientes
+                : []
+        )
+            .slice(0, 10)
+            .reverse();
+
+    if (ranking.length === 0) {
+        if (graficoTopClientes) {
+            graficoTopClientes.destroy();
+            graficoTopClientes = null;
+        }
+
+        area.innerHTML = `
+            <div class="chart-empty-state">
+                <i data-lucide="users"></i>
+                <strong>Sem clientes para apresentar</strong>
+                <p>O ranking ficará disponível quando a folha PENDENTES tiver dados.</p>
+            </div>
+        `;
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+
+        return;
+    }
+
+    if (
+        !document.getElementById(
+            "topClientsChart"
+        )
+    ) {
+        area.innerHTML = `
+            <canvas
+                id="topClientsChart"
+                aria-label="Top 10 clientes por valor pendente"
+                role="img">
+            </canvas>
+        `;
+    }
+
+    await carregarChartJs();
+
+    const canvas =
+        document.getElementById(
+            "topClientsChart"
+        );
+
+    if (!canvas) {
+        return;
+    }
+
+    if (graficoTopClientes) {
+        graficoTopClientes.destroy();
+    }
+
+    const estilos =
+        getComputedStyle(
+            document.documentElement
+        );
+
+    const corTexto =
+        estilos.getPropertyValue(
+            "--muted"
+        ).trim() || "#94a3b8";
+
+    const corLinha =
+        estilos.getPropertyValue(
+            "--primary"
+        ).trim() || "#10b981";
+
+    const corGrelha =
+        estilos.getPropertyValue(
+            "--border"
+        ).trim() ||
+        "rgba(148,163,184,.15)";
+
+    graficoTopClientes =
+        new window.Chart(
+            canvas.getContext("2d"),
+            {
+                type: "bar",
+
+                data: {
+                    labels:
+                        ranking.map(
+                            function(cliente) {
+                                return abreviarNomeCliente(
+                                    cliente.nome ||
+                                    cliente.numeroCliente ||
+                                    "Cliente"
+                                );
+                            }
+                        ),
+
+                    datasets: [
+                        {
+                            label:
+                                "Valor pendente",
+
+                            data:
+                                ranking.map(
+                                    function(cliente) {
+                                        return Number(
+                                            cliente.valorPendente ||
+                                            0
+                                        );
+                                    }
+                                ),
+
+                            backgroundColor:
+                                converterCorParaRgba(
+                                    corLinha,
+                                    0.72
+                                ),
+
+                            borderColor:
+                                corLinha,
+
+                            borderWidth: 1,
+                            borderRadius: 7,
+                            borderSkipped: false,
+                            maxBarThickness: 21
+                        }
+                    ]
+                },
+
+                options: {
+                    indexAxis: "y",
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+
+                        tooltip: {
+                            displayColors: false,
+
+                            callbacks: {
+                                title:
+                                    function(contexto) {
+                                        const indice =
+                                            contexto[0]
+                                                .dataIndex;
+
+                                        const cliente =
+                                            ranking[indice];
+
+                                        return (
+                                            cliente.nome ||
+                                            cliente.numeroCliente ||
+                                            "Cliente"
+                                        );
+                                    },
+
+                                label:
+                                    function(contexto) {
+                                        return (
+                                            " Valor pendente: " +
+                                            formatarMoeda(
+                                                contexto.parsed.x
+                                            )
+                                        );
+                                    },
+
+                                afterLabel:
+                                    function(contexto) {
+                                        const cliente =
+                                            ranking[
+                                                contexto.dataIndex
+                                            ];
+
+                                        return (
+                                            " Faturas: " +
+                                            formatarNumero(
+                                                cliente.totalFaturas ||
+                                                0
+                                            )
+                                        );
+                                    }
+                            }
+                        }
+                    },
+
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+
+                            grid: {
+                                color: corGrelha,
+                                drawTicks: false
+                            },
+
+                            ticks: {
+                                color: corTexto,
+                                padding: 8,
+
+                                callback:
+                                    function(valor) {
+                                        return formatarMoedaCompacta(
+                                            valor
+                                        );
+                                    },
+
+                                font: {
+                                    size: 9,
+                                    family: "Inter"
+                                }
+                            },
+
+                            border: {
+                                display: false
+                            }
+                        },
+
+                        y: {
+                            grid: {
+                                display: false
+                            },
+
+                            ticks: {
+                                color: corTexto,
+                                font: {
+                                    size: 9,
+                                    family: "Inter",
+                                    weight: "600"
+                                }
+                            },
+
+                            border: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            }
+        );
+}
+
+
+function renderizarInsightsAutomaticos(
+    faturas,
+    clientes,
+    historico
+) {
+    const grelha =
+        document.getElementById(
+            "aiInsightsGrid"
+        );
+
+    if (!grelha) {
+        return;
+    }
+
+    const listaFaturas =
+        Array.isArray(faturas)
+            ? faturas
+            : [];
+
+    const ranking =
+        Array.isArray(clientes)
+            ? clientes
+            : [];
+
+    const evolucao =
+        Array.isArray(historico)
+            ? historico
+            : [];
+
+    if (listaFaturas.length === 0) {
+        grelha.innerHTML = `
+            <div class="ai-insight-card information">
+
+                <div class="ai-insight-icon">
+                    <i data-lucide="database"></i>
+                </div>
+
+                <div>
+                    <strong>Sem dados para analisar</strong>
+                    <p>Importe um ficheiro para gerar conclusões automáticas.</p>
+                </div>
+
+            </div>
+        `;
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+
+        return;
+    }
+
+    const totalPendente =
+        listaFaturas.reduce(
+            function(total, fatura) {
+                return (
+                    total +
+                    Number(
+                        fatura.valorPendente || 0
+                    )
+                );
+            },
+            0
+        );
+
+    const maiorCliente =
+        ranking[0] || null;
+
+    const pesoMaiorCliente =
+        (
+            maiorCliente &&
+            totalPendente > 0
+        )
+            ? (
+                Number(
+                    maiorCliente.valorPendente ||
+                    0
+                ) /
+                totalPendente
+            ) * 100
+            : 0;
+
+    const valorTop5 =
+        ranking
+            .slice(0, 5)
+            .reduce(
+                function(total, cliente) {
+                    return (
+                        total +
+                        Number(
+                            cliente.valorPendente ||
+                            0
+                        )
+                    );
+                },
+                0
+            );
+
+    const pesoTop5 =
+        totalPendente > 0
+            ? (
+                valorTop5 /
+                totalPendente
+            ) * 100
+            : 0;
+
+    const aging =
+        calcularAntiguidadeDivida(
+            listaFaturas
+        );
+
+    const mais90 =
+        aging[3];
+
+    let variacao = null;
+
+    if (evolucao.length >= 2) {
+        const atual =
+            Number(
+                evolucao[
+                    evolucao.length - 1
+                ].valorPendente || 0
+            );
+
+        const anterior =
+            Number(
+                evolucao[
+                    evolucao.length - 2
+                ].valorPendente || 0
+            );
+
+        if (anterior !== 0) {
+            variacao =
+                (
+                    (
+                        atual -
+                        anterior
+                    ) /
+                    anterior
+                ) * 100;
+        }
+    }
+
+    const insights = [];
+
+    if (maiorCliente) {
+        insights.push({
+            classe:
+                pesoMaiorCliente >= 20
+                    ? "critical"
+                    : "warning",
+
+            icone: "building-2",
+
+            metrica:
+                pesoMaiorCliente.toFixed(1) +
+                "%",
+
+            titulo:
+                "Maior exposição num cliente",
+
+            texto:
+                (
+                    maiorCliente.nome ||
+                    maiorCliente.numeroCliente ||
+                    "O principal cliente"
+                ) +
+                " representa " +
+                pesoMaiorCliente.toFixed(1) +
+                "% do valor pendente."
+        });
+    }
+
+    insights.push({
+        classe:
+            pesoTop5 >= 60
+                ? "critical"
+                : "information",
+
+        icone: "layers-3",
+
+        metrica:
+            pesoTop5.toFixed(1) +
+            "%",
+
+        titulo:
+            "Concentração nos cinco maiores",
+
+        texto:
+            "Os cinco maiores clientes concentram " +
+            formatarMoeda(
+                valorTop5
+            ) +
+            " da carteira pendente."
+    });
+
+    insights.push({
+        classe:
+            mais90.valor > 0
+                ? "critical"
+                : "positive",
+
+        icone:
+            mais90.valor > 0
+                ? "timer-off"
+                : "circle-check-big",
+
+        metrica:
+            formatarMoedaCompacta(
+                mais90.valor
+            ),
+
+        titulo:
+            "Dívida vencida há mais de 90 dias",
+
+        texto:
+            formatarNumero(
+                mais90.quantidade
+            ) +
+            " faturas encontram-se nesta faixa crítica."
+    });
+
+    if (variacao === null) {
+        insights.push({
+            classe: "information",
+            icone: "chart-line",
+            metrica: "—",
+            titulo:
+                "Evolução entre importações",
+            texto:
+                "É necessária pelo menos mais uma importação para calcular a variação."
+        });
+
+    } else {
+        const diminuiu =
+            variacao < 0;
+
+        insights.push({
+            classe:
+                diminuiu
+                    ? "positive"
+                    : (
+                        variacao > 0
+                            ? "warning"
+                            : "information"
+                    ),
+
+            icone:
+                diminuiu
+                    ? "trending-down"
+                    : (
+                        variacao > 0
+                            ? "trending-up"
+                            : "minus"
+                    ),
+
+            metrica:
+                (
+                    variacao > 0
+                        ? "+"
+                        : ""
+                ) +
+                variacao.toFixed(1) +
+                "%",
+
+            titulo:
+                "Variação desde a importação anterior",
+
+            texto:
+                diminuiu
+                    ? "O valor pendente diminuiu face à importação anterior."
+                    : (
+                        variacao > 0
+                            ? "O valor pendente aumentou face à importação anterior."
+                            : "O valor pendente manteve-se inalterado."
+                    )
+        });
+    }
+
+    grelha.innerHTML =
+        insights.map(
+            function(insight) {
+                return `
+                    <div class="ai-insight-card ${insight.classe}">
+
+                        <div class="ai-insight-icon">
+                            <i data-lucide="${insight.icone}"></i>
+                        </div>
+
+                        <div>
+
+                            <span class="ai-insight-metric">
+                                ${escaparHtml(
+                                    insight.metrica
+                                )}
+                            </span>
+
+                            <strong>
+                                ${escaparHtml(
+                                    insight.titulo
+                                )}
+                            </strong>
+
+                            <p>
+                                ${escaparHtml(
+                                    insight.texto
+                                )}
+                            </p>
+
+                        </div>
+
+                    </div>
+                `;
+            }
+        ).join("");
+
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+}
+
+
+function converterDataFrontend(
+    valor
+) {
+    if (!valor) {
+        return null;
+    }
+
+    if (
+        valor instanceof Date &&
+        !isNaN(valor.getTime())
+    ) {
+        const data =
+            new Date(valor);
+
+        data.setHours(0, 0, 0, 0);
+
+        return data;
+    }
+
+    const textoData =
+        String(valor).trim();
+
+    const correspondencia =
+        textoData.match(
+            /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/
+        );
+
+    if (!correspondencia) {
+        return null;
+    }
+
+    let ano =
+        Number(
+            correspondencia[3]
+        );
+
+    if (ano < 100) {
+        ano +=
+            ano >= 70
+                ? 1900
+                : 2000;
+    }
+
+    const data =
+        new Date(
+            ano,
+            Number(
+                correspondencia[2]
+            ) - 1,
+            Number(
+                correspondencia[1]
+            )
+        );
+
+    if (isNaN(data.getTime())) {
+        return null;
+    }
+
+    data.setHours(0, 0, 0, 0);
+
+    return data;
+}
+
+
+function abreviarNomeCliente(
+    nome
+) {
+    const textoNome =
+        String(nome || "").trim();
+
+    if (textoNome.length <= 24) {
+        return textoNome;
+    }
+
+    return (
+        textoNome.slice(0, 22) +
+        "…"
+    );
 }
 
 
