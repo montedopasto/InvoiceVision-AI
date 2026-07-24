@@ -100,6 +100,7 @@ let importacaoEmCurso = false;
 document.addEventListener("DOMContentLoaded", function() {
     inicializarInterface();
     verificarLigacaoApi();
+    carregarDadosAplicacao();
 });
 
 
@@ -687,6 +688,8 @@ async function confirmarImportacao() {
 
         limparFicheiroSelecionado();
 
+        await carregarDadosAplicacao();
+
     } catch (erro) {
         console.error(
             "Erro na importação:",
@@ -702,6 +705,492 @@ async function confirmarImportacao() {
         importacaoEmCurso = false;
         desbloquearInterfaceImportacao();
     }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Carregamento dos dados da Google Sheet
+|--------------------------------------------------------------------------
+*/
+
+async function carregarDadosAplicacao() {
+    definirDashboardEmCarregamento();
+
+    try {
+        const resposta = await fetch(
+            API_URL +
+            "?acao=dados&t=" +
+            Date.now(),
+            {
+                method: "GET",
+                cache: "no-store"
+            }
+        );
+
+        if (!resposta.ok) {
+            throw new Error(
+                "A API respondeu com o estado " +
+                resposta.status +
+                "."
+            );
+        }
+
+        const resultado =
+            await resposta.json();
+
+        if (!resultado.sucesso) {
+            throw new Error(
+                resultado.erro ||
+                "Não foi possível obter os dados."
+            );
+        }
+
+        aplicarDadosAplicacao(
+            resultado.dados || {}
+        );
+
+    } catch (erro) {
+        console.error(
+            "Erro ao carregar dados:",
+            erro
+        );
+
+        mostrarErroCarregamentoDashboard(
+            erro.message ||
+            "Não foi possível carregar os dados da Google Sheet."
+        );
+    }
+}
+
+
+function aplicarDadosAplicacao(dados) {
+    const resumo =
+        dados.resumo || {};
+
+    DATA.dashboard = {
+        totalClientes:
+            Number(
+                resumo.totalClientes || 0
+            ),
+
+        totalFaturas:
+            Number(
+                resumo.totalFaturas || 0
+            ),
+
+        valorTotal:
+            Number(
+                resumo.valorTotal || 0
+            ),
+
+        valorPendente:
+            Number(
+                resumo.valorPendente || 0
+            ),
+
+        totalVencidas:
+            Number(
+                resumo.totalVencidas || 0
+            )
+    };
+
+    DATA.faturas =
+        Array.isArray(dados.pendentes)
+            ? dados.pendentes
+            : [];
+
+    DATA.rankings = {
+        clientes:
+            Array.isArray(
+                dados.rankingClientes
+            )
+                ? dados.rankingClientes
+                : []
+    };
+
+    renderizarDashboard(
+        dados.ultimaImportacao || null
+    );
+
+    renderizarRankingClientes(
+        DATA.rankings.clientes
+    );
+
+    renderizarAlertasDashboard();
+}
+
+
+function renderizarDashboard(
+    ultimaImportacao
+) {
+    ELEMENTOS.kpiClientes.textContent =
+        formatarNumero(
+            DATA.dashboard.totalClientes
+        );
+
+    ELEMENTOS.kpiFaturas.textContent =
+        formatarNumero(
+            DATA.dashboard.totalFaturas
+        );
+
+    ELEMENTOS.kpiValorPendente.textContent =
+        formatarMoeda(
+            DATA.dashboard.valorPendente
+        );
+
+    ELEMENTOS.kpiVencidas.textContent =
+        formatarNumero(
+            DATA.dashboard.totalVencidas
+        );
+
+    if (ultimaImportacao) {
+        ELEMENTOS.dashboardLastImport
+            .innerHTML = `
+                <i data-lucide="clock-3"></i>
+
+                <span>
+                    Atualizado em
+                    ${escaparHtml(
+                        ultimaImportacao
+                            .dataImportacao ||
+                        "—"
+                    )}
+                </span>
+            `;
+
+        ELEMENTOS.lastImport.innerHTML = `
+            <div class="last-import-icon">
+                <i data-lucide="history"></i>
+            </div>
+
+            <div>
+
+                <strong>
+                    Última importação
+                </strong>
+
+                <p>
+                    ${escaparHtml(
+                        ultimaImportacao
+                            .dataImportacao ||
+                        "—"
+                    )}
+                    ·
+                    ${formatarNumero(
+                        ultimaImportacao
+                            .totalFaturas || 0
+                    )}
+                    faturas
+                </p>
+
+            </div>
+        `;
+
+    } else {
+        ELEMENTOS.dashboardLastImport
+            .innerHTML = `
+                <i data-lucide="clock-3"></i>
+
+                <span>
+                    Ainda não existem importações
+                </span>
+            `;
+    }
+
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+}
+
+
+function definirDashboardEmCarregamento() {
+    ELEMENTOS.kpiClientes.textContent = "…";
+    ELEMENTOS.kpiFaturas.textContent = "…";
+    ELEMENTOS.kpiValorPendente.textContent = "…";
+    ELEMENTOS.kpiVencidas.textContent = "…";
+
+    ELEMENTOS.dashboardLastImport
+        .innerHTML = `
+            <i data-lucide="loader-circle"></i>
+
+            <span>
+                A carregar dados...
+            </span>
+        `;
+
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+}
+
+
+function mostrarErroCarregamentoDashboard(
+    mensagem
+) {
+    ELEMENTOS.kpiClientes.textContent = "—";
+    ELEMENTOS.kpiFaturas.textContent = "—";
+    ELEMENTOS.kpiValorPendente.textContent = "—";
+    ELEMENTOS.kpiVencidas.textContent = "—";
+
+    ELEMENTOS.dashboardLastImport
+        .innerHTML = `
+            <i data-lucide="triangle-alert"></i>
+
+            <span>
+                ${escaparHtml(mensagem)}
+            </span>
+        `;
+
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+}
+
+
+function renderizarRankingClientes(
+    clientes
+) {
+    const painel =
+        document.querySelector(
+            ".secondary-grid .panel:nth-child(2)"
+        );
+
+    if (!painel) {
+        return;
+    }
+
+    const conteudoAntigo =
+        painel.querySelector(
+            ".table-placeholder, .ranking-clientes"
+        );
+
+    if (!conteudoAntigo) {
+        return;
+    }
+
+    if (
+        !Array.isArray(clientes) ||
+        clientes.length === 0
+    ) {
+        conteudoAntigo.outerHTML = `
+            <div class="ranking-clientes">
+
+                <div class="alert-item neutral">
+
+                    <div class="alert-marker"></div>
+
+                    <div>
+
+                        <strong>
+                            Sem clientes para apresentar
+                        </strong>
+
+                        <p>
+                            A folha PENDENTES ainda não contém dados.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+        `;
+
+        return;
+    }
+
+    const linhas = clientes
+        .slice(0, 5)
+        .map(function(cliente, indice) {
+            return `
+                <div
+                    style="
+                        display:grid;
+                        grid-template-columns:34px minmax(0,1fr) auto;
+                        align-items:center;
+                        gap:11px;
+                        padding:12px 0;
+                        border-bottom:
+                            ${indice === Math.min(clientes.length, 5) - 1
+                                ? "none"
+                                : "1px solid var(--border)"};
+                    ">
+
+                    <div
+                        style="
+                            width:30px;
+                            height:30px;
+                            display:grid;
+                            place-items:center;
+                            border-radius:9px;
+                            background:var(--primary-soft);
+                            color:var(--primary-dark);
+                            font-size:10px;
+                            font-weight:800;
+                        ">
+                        ${indice + 1}
+                    </div>
+
+                    <div style="min-width:0;">
+
+                        <strong
+                            style="
+                                display:block;
+                                overflow:hidden;
+                                color:var(--text);
+                                font-size:11px;
+                                text-overflow:ellipsis;
+                                white-space:nowrap;
+                            ">
+                            ${escaparHtml(
+                                cliente.nome ||
+                                cliente.numeroCliente ||
+                                "Cliente"
+                            )}
+                        </strong>
+
+                        <span
+                            style="
+                                color:var(--muted);
+                                font-size:9px;
+                            ">
+                            ${formatarNumero(
+                                cliente.totalFaturas || 0
+                            )}
+                            faturas
+                        </span>
+
+                    </div>
+
+                    <strong
+                        style="
+                            color:var(--text);
+                            font-size:11px;
+                            white-space:nowrap;
+                        ">
+                        ${formatarMoeda(
+                            cliente.valorPendente || 0
+                        )}
+                    </strong>
+
+                </div>
+            `;
+        })
+        .join("");
+
+    conteudoAntigo.outerHTML = `
+        <div class="ranking-clientes">
+            ${linhas}
+        </div>
+    `;
+}
+
+
+function renderizarAlertasDashboard() {
+    const lista =
+        document.querySelector(
+            ".alert-list"
+        );
+
+    if (!lista) {
+        return;
+    }
+
+    if (DATA.dashboard.totalFaturas === 0) {
+        lista.innerHTML = `
+            <div class="alert-item neutral">
+
+                <div class="alert-marker"></div>
+
+                <div>
+
+                    <strong>
+                        Sem faturas pendentes
+                    </strong>
+
+                    <p>
+                        A folha PENDENTES não contém documentos.
+                    </p>
+
+                </div>
+
+            </div>
+        `;
+
+        return;
+    }
+
+    const percentagemVencidas =
+        DATA.dashboard.totalFaturas > 0
+            ? Math.round(
+                (
+                    DATA.dashboard.totalVencidas /
+                    DATA.dashboard.totalFaturas
+                ) * 100
+            )
+            : 0;
+
+    lista.innerHTML = `
+        <div class="alert-item neutral">
+
+            <div
+                class="alert-marker"
+                style="
+                    background:
+                        ${DATA.dashboard.totalVencidas > 0
+                            ? "var(--danger)"
+                            : "var(--success)"};
+                ">
+            </div>
+
+            <div>
+
+                <strong>
+                    ${formatarNumero(
+                        DATA.dashboard.totalVencidas
+                    )}
+                    faturas vencidas
+                </strong>
+
+                <p>
+                    Representam
+                    ${formatarNumero(
+                        percentagemVencidas
+                    )}%
+                    das faturas pendentes.
+                </p>
+
+            </div>
+
+        </div>
+
+        <div
+            class="alert-item neutral"
+            style="margin-top:10px;">
+
+            <div
+                class="alert-marker"
+                style="background:var(--amber);">
+            </div>
+
+            <div>
+
+                <strong>
+                    Valor total pendente
+                </strong>
+
+                <p>
+                    ${formatarMoeda(
+                        DATA.dashboard.valorPendente
+                    )}
+                    por cobrar.
+                </p>
+
+            </div>
+
+        </div>
+    `;
 }
 
 
