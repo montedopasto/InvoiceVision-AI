@@ -669,22 +669,109 @@
                 class="app-page"
                 data-title="Clientes">
 
-                <div class="module-placeholder">
+                <div class="page-heading clients-page-heading">
+                    <div>
+                        <span class="eyebrow">Análise por cliente</span>
+                        <h2>Clientes</h2>
+                        <p>Consulte a situação completa das faturas pendentes de cada cliente.</p>
+                    </div>
+                </div>
 
-                    <div class="module-placeholder-icon">
-                        <i data-lucide="users-round"></i>
+                <div class="clients-kpi-grid">
+                    <article class="clients-kpi-card">
+                        <span>Total de clientes</span>
+                        <strong id="clientesTotal">—</strong>
+                    </article>
+
+                    <article class="clients-kpi-card">
+                        <span>Com faturas vencidas</span>
+                        <strong id="clientesComVencidas">—</strong>
+                    </article>
+
+                    <article class="clients-kpi-card">
+                        <span>Em contencioso</span>
+                        <strong id="clientesContencioso">—</strong>
+                    </article>
+
+                    <article class="clients-kpi-card">
+                        <span>Valor total pendente</span>
+                        <strong id="clientesValorTotal">—</strong>
+                    </article>
+                </div>
+
+                <article class="panel clients-panel">
+                    <div class="clients-toolbar">
+                        <div class="invoice-status-filters">
+                            <button class="client-filter active" type="button" data-client-filter="TODOS">Todos</button>
+                            <button class="client-filter" type="button" data-client-filter="VENCIDA">Com vencidas</button>
+                            <button class="client-filter" type="button" data-client-filter="CONTENCIOSO">Contencioso</button>
+                            <button class="client-filter" type="button" data-client-filter="DENTRO_PRAZO">Só dentro do prazo</button>
+                        </div>
+
+                        <label class="invoice-search">
+                            <i data-lucide="search"></i>
+                            <input id="clientSearchInput" type="search" placeholder="Procurar cliente ou número...">
+                        </label>
                     </div>
 
-                    <span class="eyebrow">
-                        Módulo em preparação
-                    </span>
+                    <div class="clients-table-wrap">
+                        <table class="clients-table">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th class="align-center">Faturas</th>
+                                    <th class="align-right">Dentro do prazo</th>
+                                    <th class="align-right">Vencidas</th>
+                                    <th class="align-right">Contencioso</th>
+                                    <th class="align-right">Total pendente</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientsTableBody">
+                                <tr>
+                                    <td colspan="7">
+                                        <div class="table-loading-state">A carregar clientes...</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
 
-                    <h2>Clientes</h2>
+                <div id="clientDetailModal" class="client-detail-modal" aria-hidden="true">
+                    <div class="client-detail-backdrop" data-close-client-detail="true"></div>
+                    <div class="client-detail-card">
+                        <div class="client-detail-header">
+                            <div>
+                                <span class="eyebrow">Ficha do cliente</span>
+                                <h3 id="clientDetailName">Cliente</h3>
+                                <p id="clientDetailNumber">—</p>
+                            </div>
+                            <button id="closeClientDetailBtn" class="icon-btn" type="button" aria-label="Fechar">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
 
-                    <p>
-                        Aqui ficará o ranking de clientes, valores pendentes e histórico individual.
-                    </p>
+                        <div id="clientDetailSummary" class="client-detail-summary"></div>
 
+                        <div class="client-detail-invoices">
+                            <h4>Faturas pendentes</h4>
+                            <div class="clients-table-wrap">
+                                <table class="clients-table client-invoices-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Documento</th>
+                                            <th>Vencimento</th>
+                                            <th>Estado</th>
+                                            <th>Situação</th>
+                                            <th class="align-right">Valor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="clientDetailInvoices"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
             </section>
@@ -1005,7 +1092,7 @@
 </div>
 
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="app-v2.js?v=2.0.1"></script>
+<script src="app-v2-1.js?v=2.1.0"></script>
 
 </body>
 
