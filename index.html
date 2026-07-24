@@ -115,7 +115,7 @@
                 <span>Online</span>
             </div>
 
-            <span class="version">v1.0</span>
+            <span class="version">v2.2</span>
 
         </div>
 
@@ -781,22 +781,51 @@
                 class="app-page"
                 data-title="Histórico">
 
-                <div class="module-placeholder">
-
-                    <div class="module-placeholder-icon">
-                        <i data-lucide="history"></i>
+                <div class="page-heading">
+                    <div>
+                        <span class="eyebrow">Evolução das importações</span>
+                        <h2>Histórico</h2>
+                        <p>Compare cada atualização e acompanhe a evolução das faturas pendentes.</p>
                     </div>
+                    <div id="historyPeriodPill" class="last-update-pill">—</div>
+                </div>
 
-                    <span class="eyebrow">
-                        Módulo em preparação
-                    </span>
+                <div class="history-kpi-grid">
+                    <article class="history-kpi-card"><span>Importações</span><strong id="historyTotalImports">—</strong><small>registos concluídos</small></article>
+                    <article class="history-kpi-card"><span>Variação mais recente</span><strong id="historyLatestVariation">—</strong><small id="historyLatestVariationLabel">face à anterior</small></article>
+                    <article class="history-kpi-card"><span>Novas faturas</span><strong id="historyNewInvoices">—</strong><small>na última importação</small></article>
+                    <article class="history-kpi-card"><span>Faturas liquidadas</span><strong id="historyPaidInvoices">—</strong><small>na última importação</small></article>
+                </div>
 
-                    <h2>Histórico</h2>
+                <div class="history-layout">
+                    <article class="panel history-trend-panel">
+                        <div class="panel-header"><div><span class="panel-eyebrow">Tendência</span><h3>Evolução do valor pendente</h3></div><div class="panel-icon"><i data-lucide="chart-no-axes-combined"></i></div></div>
+                        <div id="historyTrend" class="history-trend"></div>
+                    </article>
 
-                    <p>
-                        Este módulo mostrará todas as importações e as diferenças entre períodos.
-                    </p>
+                    <article class="panel history-state-panel">
+                        <div class="panel-header"><div><span class="panel-eyebrow">Último estado</span><h3>Distribuição atual</h3></div><div class="panel-icon"><i data-lucide="chart-pie"></i></div></div>
+                        <div id="historyStateDistribution" class="history-state-distribution"></div>
+                    </article>
+                </div>
 
+                <article class="panel history-table-panel">
+                    <div class="panel-header"><div><span class="panel-eyebrow">Registo completo</span><h3>Importações</h3></div></div>
+                    <div class="clients-table-wrap">
+                        <table class="clients-table history-table">
+                            <thead><tr><th>Data</th><th>Ficheiro</th><th class="align-center">Clientes</th><th class="align-center">Faturas</th><th class="align-right">Valor pendente</th><th class="align-right">Variação</th><th class="align-center">Novas</th><th class="align-center">Liquidadas</th><th></th></tr></thead>
+                            <tbody id="historyTableBody"><tr><td colspan="9"><div class="table-loading-state">A carregar histórico...</div></td></tr></tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <div id="historyDetailModal" class="client-detail-modal" aria-hidden="true">
+                    <div class="client-detail-backdrop" data-close-history-detail="true"></div>
+                    <div class="client-detail-card history-detail-card">
+                        <div class="client-detail-header"><div><span class="eyebrow">Detalhe da importação</span><h3 id="historyDetailTitle">Importação</h3><p id="historyDetailSubtitle">—</p></div><button id="closeHistoryDetailBtn" class="icon-btn" type="button"><i data-lucide="x"></i></button></div>
+                        <div id="historyDetailSummary" class="client-detail-summary"></div>
+                        <div class="history-detail-body"><div id="historyDetailStates" class="history-detail-states"></div></div>
+                    </div>
                 </div>
 
             </section>
@@ -806,23 +835,32 @@
                 class="app-page"
                 data-title="AI Intelligence">
 
-                <div class="module-placeholder">
-
-                    <div class="module-placeholder-icon ai-placeholder-icon">
-                        <i data-lucide="brain-circuit"></i>
-                    </div>
-
-                    <span class="eyebrow">
-                        Motor de análise
-                    </span>
-
-                    <h2>AI Intelligence</h2>
-
-                    <p>
-                        Aqui ficarão as tendências, alertas, concentrações e respostas automáticas sobre os dados.
-                    </p>
-
+                <div class="page-heading ai-page-heading">
+                    <div><span class="eyebrow">Análise inteligente</span><h2>AI Intelligence</h2><p>Leitura automática dos riscos, concentrações e prioridades das faturas pendentes.</p></div>
+                    <button id="refreshAiBtn" class="primary-btn" type="button"><i data-lucide="refresh-cw"></i><span>Atualizar análise</span></button>
                 </div>
+
+                <article class="ai-executive-card">
+                    <div class="ai-executive-icon"><i data-lucide="brain-circuit"></i></div>
+                    <div><span>Resumo executivo</span><h3 id="aiExecutiveTitle">A analisar os dados...</h3><p id="aiExecutiveText">Aguarde enquanto são avaliadas as faturas pendentes.</p></div>
+                </article>
+
+                <div class="ai-metrics-grid">
+                    <article class="ai-metric-card"><span>Valor em risco</span><strong id="aiRiskValue">—</strong><small>vencidas + contencioso</small></article>
+                    <article class="ai-metric-card"><span>Concentração Top 5</span><strong id="aiTop5Concentration">—</strong><small>do valor pendente</small></article>
+                    <article class="ai-metric-card"><span>Faturas +90 dias</span><strong id="aiOver90Invoices">—</strong><small id="aiOver90Value">—</small></article>
+                    <article class="ai-metric-card"><span>Tendência recente</span><strong id="aiTrendValue">—</strong><small id="aiTrendLabel">face à importação anterior</small></article>
+                </div>
+
+                <div class="ai-main-grid">
+                    <article class="panel ai-alerts-card"><div class="panel-header"><div><span class="panel-eyebrow">Alertas</span><h3>Pontos críticos</h3></div><div class="panel-icon danger-icon"><i data-lucide="triangle-alert"></i></div></div><div id="aiAlertsList" class="ai-list"></div></article>
+                    <article class="panel ai-opportunities-card"><div class="panel-header"><div><span class="panel-eyebrow">Leitura automática</span><h3>Insights principais</h3></div><div class="panel-icon ai-icon"><i data-lucide="sparkles"></i></div></div><div id="aiInsightsList" class="ai-list"></div></article>
+                </div>
+
+                <article class="panel ai-priorities-panel">
+                    <div class="panel-header"><div><span class="panel-eyebrow">Prioridades</span><h3>Clientes que exigem maior atenção</h3></div><div class="panel-icon"><i data-lucide="list-ordered"></i></div></div>
+                    <div class="clients-table-wrap"><table class="clients-table ai-priorities-table"><thead><tr><th>Prioridade</th><th>Cliente</th><th>Motivo</th><th class="align-center">Faturas</th><th class="align-right">Valor relevante</th><th class="align-right">Total pendente</th></tr></thead><tbody id="aiPrioritiesBody"></tbody></table></div>
+                </article>
 
             </section>
 
@@ -1092,7 +1130,7 @@
 </div>
 
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="app-v2-1.js?v=2.1.0"></script>
+<script src="app-v2-2.js?v=2.2.0"></script>
 
 </body>
 
