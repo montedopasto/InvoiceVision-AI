@@ -220,111 +220,141 @@
 
                 </div>
 
-                <div class="kpi-grid">
+                <div class="pending-overview">
 
-                    <article class="kpi-card">
+                    <article class="pending-total-card">
 
-                        <div class="kpi-card-header">
+                        <div class="pending-total-copy">
 
-                            <div class="kpi-icon emerald">
-                                <i data-lucide="users"></i>
-                            </div>
-
-                            <span class="kpi-label">
-                                Clientes
+                            <span class="panel-eyebrow">
+                                Estado das Pendências
                             </span>
+
+                            <h3>Total pendente</h3>
+
+                            <strong
+                                id="kpiValorPendente"
+                                class="pending-total-value">
+                                —
+                            </strong>
 
                         </div>
 
-                        <strong
-                            id="kpiClientes"
-                            class="kpi-value">
-                            —
-                        </strong>
+                        <div class="pending-total-meta">
 
-                        <span class="kpi-description">
-                            Clientes com faturas pendentes
-                        </span>
-
-                    </article>
-
-                    <article class="kpi-card">
-
-                        <div class="kpi-card-header">
-
-                            <div class="kpi-icon blue">
-                                <i data-lucide="receipt"></i>
+                            <div>
+                                <span>Clientes</span>
+                                <strong id="kpiClientes">—</strong>
                             </div>
 
-                            <span class="kpi-label">
-                                Faturas
-                            </span>
+                            <div>
+                                <span>Faturas</span>
+                                <strong id="kpiFaturas">—</strong>
+                            </div>
 
                         </div>
 
-                        <strong
-                            id="kpiFaturas"
-                            class="kpi-value">
-                            —
-                        </strong>
-
-                        <span class="kpi-description">
-                            Total de documentos pendentes
-                        </span>
-
                     </article>
 
-                    <article class="kpi-card">
+                    <div class="pending-status-grid">
 
-                        <div class="kpi-card-header">
+                        <article class="pending-status-card on-time">
 
-                            <div class="kpi-icon violet">
-                                <i data-lucide="banknote"></i>
+                            <div class="pending-status-header">
+
+                                <div class="pending-status-icon">
+                                    <i data-lucide="calendar-check-2"></i>
+                                </div>
+
+                                <span>Dentro do prazo</span>
+
                             </div>
 
-                            <span class="kpi-label">
-                                Valor pendente
-                            </span>
+                            <strong
+                                id="kpiDentroPrazoValor"
+                                class="pending-status-value">
+                                —
+                            </strong>
 
-                        </div>
+                            <div class="pending-status-footer">
 
-                        <strong
-                            id="kpiValorPendente"
-                            class="kpi-value">
-                            —
-                        </strong>
+                                <span id="kpiDentroPrazoFaturas">
+                                    — faturas
+                                </span>
 
-                        <span class="kpi-description">
-                            Soma de todos os valores pendentes
-                        </span>
+                                <strong id="kpiDentroPrazoPercentagem">
+                                    —%
+                                </strong>
 
-                    </article>
-
-                    <article class="kpi-card">
-
-                        <div class="kpi-card-header">
-
-                            <div class="kpi-icon amber">
-                                <i data-lucide="triangle-alert"></i>
                             </div>
 
-                            <span class="kpi-label">
-                                Faturas vencidas
-                            </span>
+                        </article>
 
-                        </div>
+                        <article class="pending-status-card overdue">
 
-                        <strong
-                            id="kpiVencidas"
-                            class="kpi-value">
-                            —
-                        </strong>
+                            <div class="pending-status-header">
 
-                        <span class="kpi-description">
-                            Documentos que exigem atenção
-                        </span>
+                                <div class="pending-status-icon">
+                                    <i data-lucide="clock-alert"></i>
+                                </div>
 
-                    </article>
+                                <span>Vencidas</span>
+
+                            </div>
+
+                            <strong
+                                id="kpiVencidasValor"
+                                class="pending-status-value">
+                                —
+                            </strong>
+
+                            <div class="pending-status-footer">
+
+                                <span id="kpiVencidas">
+                                    — faturas
+                                </span>
+
+                                <strong id="kpiVencidasPercentagem">
+                                    —%
+                                </strong>
+
+                            </div>
+
+                        </article>
+
+                        <article class="pending-status-card litigation">
+
+                            <div class="pending-status-header">
+
+                                <div class="pending-status-icon">
+                                    <i data-lucide="scale"></i>
+                                </div>
+
+                                <span>Contencioso</span>
+
+                            </div>
+
+                            <strong
+                                id="kpiContenciosoValor"
+                                class="pending-status-value">
+                                —
+                            </strong>
+
+                            <div class="pending-status-footer">
+
+                                <span id="kpiContenciosoFaturas">
+                                    — faturas
+                                </span>
+
+                                <strong id="kpiContenciosoPercentagem">
+                                    —%
+                                </strong>
+
+                            </div>
+
+                        </article>
+
+                    </div>
 
                 </div>
 
@@ -523,23 +553,114 @@
                 class="app-page"
                 data-title="Faturas">
 
-                <div class="module-placeholder">
+                <div class="page-heading invoices-page-heading">
 
-                    <div class="module-placeholder-icon">
-                        <i data-lucide="receipt-text"></i>
+                    <div>
+
+                        <span class="eyebrow">
+                            Documentos pendentes
+                        </span>
+
+                        <h2>Faturas</h2>
+
+                        <p>
+                            Consulte e diferencie claramente as faturas dentro do prazo, vencidas e em contencioso.
+                        </p>
+
                     </div>
 
-                    <span class="eyebrow">
-                        Módulo em preparação
-                    </span>
-
-                    <h2>Faturas</h2>
-
-                    <p>
-                        Este módulo terá pesquisa, filtros, ordenação, detalhe da fatura e exportação.
-                    </p>
+                    <div
+                        id="faturasResumo"
+                        class="last-update-pill">
+                        —
+                    </div>
 
                 </div>
+
+                <article class="panel invoices-panel">
+
+                    <div class="invoices-toolbar">
+
+                        <div
+                            class="invoice-status-filters"
+                            role="group"
+                            aria-label="Filtrar por estado">
+
+                            <button
+                                type="button"
+                                class="invoice-filter active"
+                                data-invoice-filter="TODAS">
+                                Todas
+                            </button>
+
+                            <button
+                                type="button"
+                                class="invoice-filter"
+                                data-invoice-filter="DENTRO_PRAZO">
+                                Dentro do prazo
+                            </button>
+
+                            <button
+                                type="button"
+                                class="invoice-filter"
+                                data-invoice-filter="VENCIDA">
+                                Vencidas
+                            </button>
+
+                            <button
+                                type="button"
+                                class="invoice-filter"
+                                data-invoice-filter="CONTENCIOSO">
+                                Contencioso
+                            </button>
+
+                        </div>
+
+                        <label class="invoice-search">
+
+                            <i data-lucide="search"></i>
+
+                            <input
+                                id="invoiceSearchInput"
+                                type="search"
+                                placeholder="Pesquisar cliente ou documento">
+
+                        </label>
+
+                    </div>
+
+                    <div class="invoices-table-wrap">
+
+                        <table class="invoices-table">
+
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Documento</th>
+                                    <th>Vencimento</th>
+                                    <th>Estado</th>
+                                    <th>Situação</th>
+                                    <th class="align-right">Valor pendente</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="invoicesTableBody">
+
+                                <tr>
+                                    <td colspan="6">
+                                        <div class="table-loading-state">
+                                            A carregar faturas...
+                                        </div>
+                                    </td>
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </article>
 
             </section>
 

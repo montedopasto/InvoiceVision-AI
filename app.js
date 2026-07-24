@@ -19,7 +19,24 @@ const DATA = {
         totalFaturas: 0,
         valorTotal: 0,
         valorPendente: 0,
-        totalVencidas: 0
+        totalVencidas: 0,
+        totalDentroPrazo: 0,
+        totalContencioso: 0,
+
+        dentroPrazo: {
+            totalFaturas: 0,
+            valorPendente: 0
+        },
+
+        vencidas: {
+            totalFaturas: 0,
+            valorPendente: 0
+        },
+
+        contencioso: {
+            totalFaturas: 0,
+            valorPendente: 0
+        }
     },
 
     alertas: [],
@@ -65,7 +82,43 @@ const ELEMENTOS = {
     kpiClientes: document.getElementById("kpiClientes"),
     kpiFaturas: document.getElementById("kpiFaturas"),
     kpiValorPendente: document.getElementById("kpiValorPendente"),
-    kpiVencidas: document.getElementById("kpiVencidas")
+    kpiVencidas: document.getElementById("kpiVencidas"),
+
+    kpiDentroPrazoValor:
+        document.getElementById("kpiDentroPrazoValor"),
+
+    kpiDentroPrazoFaturas:
+        document.getElementById("kpiDentroPrazoFaturas"),
+
+    kpiDentroPrazoPercentagem:
+        document.getElementById("kpiDentroPrazoPercentagem"),
+
+    kpiVencidasValor:
+        document.getElementById("kpiVencidasValor"),
+
+    kpiVencidasPercentagem:
+        document.getElementById("kpiVencidasPercentagem"),
+
+    kpiContenciosoValor:
+        document.getElementById("kpiContenciosoValor"),
+
+    kpiContenciosoFaturas:
+        document.getElementById("kpiContenciosoFaturas"),
+
+    kpiContenciosoPercentagem:
+        document.getElementById("kpiContenciosoPercentagem"),
+
+    faturasResumo:
+        document.getElementById("faturasResumo"),
+
+    invoiceSearchInput:
+        document.getElementById("invoiceSearchInput"),
+
+    invoiceFilters:
+        document.querySelectorAll(".invoice-filter"),
+
+    invoicesTableBody:
+        document.getElementById("invoicesTableBody")
 };
 
 
@@ -94,6 +147,8 @@ let graficoEvolucao = null;
 let graficoAging = null;
 let graficoTopClientes = null;
 let promessaChartJs = null;
+let filtroEstadoFaturas = "TODAS";
+let pesquisaFaturas = "";
 
 
 /*
@@ -216,6 +271,41 @@ function registarEventosInterface() {
         "click",
         alternarTema
     );
+
+    ELEMENTOS.invoiceFilters.forEach(function(botao) {
+        botao.addEventListener("click", function() {
+            filtroEstadoFaturas =
+                botao.dataset.invoiceFilter ||
+                "TODAS";
+
+            ELEMENTOS.invoiceFilters
+                .forEach(function(item) {
+                    item.classList.toggle(
+                        "active",
+                        item === botao
+                    );
+                });
+
+            renderizarTabelaFaturas();
+        });
+    });
+
+    if (ELEMENTOS.invoiceSearchInput) {
+        ELEMENTOS.invoiceSearchInput
+            .addEventListener(
+                "input",
+                function() {
+                    pesquisaFaturas =
+                        ELEMENTOS
+                            .invoiceSearchInput
+                            .value
+                            .trim()
+                            .toLowerCase();
+
+                    renderizarTabelaFaturas();
+                }
+            );
+    }
 
     document.addEventListener("keydown", function(evento) {
         const teclaK =
@@ -822,7 +912,59 @@ function aplicarDadosAplicacao(dados) {
         totalVencidas:
             Number(
                 resumo.totalVencidas || 0
-            )
+            ),
+
+        totalDentroPrazo:
+            Number(
+                resumo.totalDentroPrazo || 0
+            ),
+
+        totalContencioso:
+            Number(
+                resumo.totalContencioso || 0
+            ),
+
+        dentroPrazo: {
+            totalFaturas:
+                Number(
+                    resumo.dentroPrazo
+                        ?.totalFaturas || 0
+                ),
+
+            valorPendente:
+                Number(
+                    resumo.dentroPrazo
+                        ?.valorPendente || 0
+                )
+        },
+
+        vencidas: {
+            totalFaturas:
+                Number(
+                    resumo.vencidas
+                        ?.totalFaturas || 0
+                ),
+
+            valorPendente:
+                Number(
+                    resumo.vencidas
+                        ?.valorPendente || 0
+                )
+        },
+
+        contencioso: {
+            totalFaturas:
+                Number(
+                    resumo.contencioso
+                        ?.totalFaturas || 0
+                ),
+
+            valorPendente:
+                Number(
+                    resumo.contencioso
+                        ?.valorPendente || 0
+                )
+        }
     };
 
     DATA.faturas =
@@ -869,12 +1011,41 @@ function aplicarDadosAplicacao(dados) {
         DATA.rankings.clientes,
         DATA.historicoEvolucao
     );
+
+    renderizarTabelaFaturas();
 }
 
 
 function renderizarDashboard(
     ultimaImportacao
 ) {
+    const total =
+        DATA.dashboard.valorPendente;
+
+    const percentagemDentroPrazo =
+        calcularPercentagem(
+            DATA.dashboard
+                .dentroPrazo
+                .valorPendente,
+            total
+        );
+
+    const percentagemVencidas =
+        calcularPercentagem(
+            DATA.dashboard
+                .vencidas
+                .valorPendente,
+            total
+        );
+
+    const percentagemContencioso =
+        calcularPercentagem(
+            DATA.dashboard
+                .contencioso
+                .valorPendente,
+            total
+        );
+
     ELEMENTOS.kpiClientes.textContent =
         formatarNumero(
             DATA.dashboard.totalClientes
@@ -890,10 +1061,62 @@ function renderizarDashboard(
             DATA.dashboard.valorPendente
         );
 
+    ELEMENTOS.kpiDentroPrazoValor.textContent =
+        formatarMoeda(
+            DATA.dashboard
+                .dentroPrazo
+                .valorPendente
+        );
+
+    ELEMENTOS.kpiDentroPrazoFaturas.textContent =
+        formatarNumero(
+            DATA.dashboard
+                .dentroPrazo
+                .totalFaturas
+        ) +
+        " faturas";
+
+    ELEMENTOS.kpiDentroPrazoPercentagem.textContent =
+        percentagemDentroPrazo.toFixed(1) +
+        "%";
+
+    ELEMENTOS.kpiVencidasValor.textContent =
+        formatarMoeda(
+            DATA.dashboard
+                .vencidas
+                .valorPendente
+        );
+
     ELEMENTOS.kpiVencidas.textContent =
         formatarNumero(
-            DATA.dashboard.totalVencidas
+            DATA.dashboard
+                .vencidas
+                .totalFaturas
+        ) +
+        " faturas";
+
+    ELEMENTOS.kpiVencidasPercentagem.textContent =
+        percentagemVencidas.toFixed(1) +
+        "%";
+
+    ELEMENTOS.kpiContenciosoValor.textContent =
+        formatarMoeda(
+            DATA.dashboard
+                .contencioso
+                .valorPendente
         );
+
+    ELEMENTOS.kpiContenciosoFaturas.textContent =
+        formatarNumero(
+            DATA.dashboard
+                .contencioso
+                .totalFaturas
+        ) +
+        " faturas";
+
+    ELEMENTOS.kpiContenciosoPercentagem.textContent =
+        percentagemContencioso.toFixed(1) +
+        "%";
 
     if (ultimaImportacao) {
         ELEMENTOS.dashboardLastImport
@@ -1515,327 +1738,68 @@ function formatarMoedaCompacta(
 
 
 function definirDashboardEmCarregamento() {
-    ELEMENTOS.kpiClientes.textContent = "…";
-    ELEMENTOS.kpiFaturas.textContent = "…";
-    ELEMENTOS.kpiValorPendente.textContent = "…";
-    ELEMENTOS.kpiVencidas.textContent = "…";
+    [
+        ELEMENTOS.kpiClientes,
+        ELEMENTOS.kpiFaturas,
+        ELEMENTOS.kpiValorPendente,
+        ELEMENTOS.kpiVencidas,
+        ELEMENTOS.kpiDentroPrazoValor,
+        ELEMENTOS.kpiDentroPrazoFaturas,
+        ELEMENTOS.kpiDentroPrazoPercentagem,
+        ELEMENTOS.kpiVencidasValor,
+        ELEMENTOS.kpiVencidasPercentagem,
+        ELEMENTOS.kpiContenciosoValor,
+        ELEMENTOS.kpiContenciosoFaturas,
+        ELEMENTOS.kpiContenciosoPercentagem
+    ].forEach(function(elemento) {
+        if (elemento) {
+            elemento.textContent = "…";
+        }
+    });
 
     ELEMENTOS.dashboardLastImport
         .innerHTML = `
             <i data-lucide="loader-circle"></i>
-
-            <span>
-                A carregar dados...
-            </span>
+            <span>A carregar dados...</span>
         `;
 
     if (window.lucide) {
         window.lucide.createIcons();
     }
 }
-
 
 function mostrarErroCarregamentoDashboard(
     mensagem
 ) {
-    ELEMENTOS.kpiClientes.textContent = "—";
-    ELEMENTOS.kpiFaturas.textContent = "—";
-    ELEMENTOS.kpiValorPendente.textContent = "—";
-    ELEMENTOS.kpiVencidas.textContent = "—";
+    [
+        ELEMENTOS.kpiClientes,
+        ELEMENTOS.kpiFaturas,
+        ELEMENTOS.kpiValorPendente,
+        ELEMENTOS.kpiVencidas,
+        ELEMENTOS.kpiDentroPrazoValor,
+        ELEMENTOS.kpiDentroPrazoFaturas,
+        ELEMENTOS.kpiDentroPrazoPercentagem,
+        ELEMENTOS.kpiVencidasValor,
+        ELEMENTOS.kpiVencidasPercentagem,
+        ELEMENTOS.kpiContenciosoValor,
+        ELEMENTOS.kpiContenciosoFaturas,
+        ELEMENTOS.kpiContenciosoPercentagem
+    ].forEach(function(elemento) {
+        if (elemento) {
+            elemento.textContent = "—";
+        }
+    });
 
     ELEMENTOS.dashboardLastImport
         .innerHTML = `
             <i data-lucide="triangle-alert"></i>
-
-            <span>
-                ${escaparHtml(mensagem)}
-            </span>
+            <span>${escaparHtml(mensagem)}</span>
         `;
 
     if (window.lucide) {
         window.lucide.createIcons();
     }
 }
-
-
-async function renderizarGraficoAntiguidade(
-    faturas
-) {
-    const area =
-        document.getElementById(
-            "agingChartArea"
-        );
-
-    const legenda =
-        document.getElementById(
-            "agingLegend"
-        );
-
-    if (!area || !legenda) {
-        return;
-    }
-
-    const aging =
-        calcularAntiguidadeDivida(
-            faturas
-        );
-
-    const totalVencido =
-        aging.reduce(
-            function(total, item) {
-                return total + item.valor;
-            },
-            0
-        );
-
-    if (totalVencido <= 0) {
-        if (graficoAging) {
-            graficoAging.destroy();
-            graficoAging = null;
-        }
-
-        area.innerHTML = `
-            <div class="chart-empty-state">
-                <i data-lucide="circle-check-big"></i>
-                <strong>Sem dívida vencida</strong>
-                <p>Não existem valores pendentes com data de vencimento ultrapassada.</p>
-            </div>
-        `;
-
-        legenda.innerHTML = "";
-
-        if (window.lucide) {
-            window.lucide.createIcons();
-        }
-
-        return;
-    }
-
-    if (
-        !document.getElementById(
-            "agingDebtChart"
-        )
-    ) {
-        area.innerHTML = `
-            <canvas
-                id="agingDebtChart"
-                aria-label="Antiguidade da dívida vencida"
-                role="img">
-            </canvas>
-        `;
-    }
-
-    await carregarChartJs();
-
-    const canvas =
-        document.getElementById(
-            "agingDebtChart"
-        );
-
-    if (!canvas) {
-        return;
-    }
-
-    if (graficoAging) {
-        graficoAging.destroy();
-    }
-
-    const cores = [
-        "#22c55e",
-        "#f59e0b",
-        "#f97316",
-        "#ef4444"
-    ];
-
-    graficoAging =
-        new window.Chart(
-            canvas.getContext("2d"),
-            {
-                type: "doughnut",
-
-                data: {
-                    labels:
-                        aging.map(
-                            function(item) {
-                                return item.label;
-                            }
-                        ),
-
-                    datasets: [
-                        {
-                            data:
-                                aging.map(
-                                    function(item) {
-                                        return item.valor;
-                                    }
-                                ),
-
-                            backgroundColor:
-                                cores,
-
-                            borderWidth: 0,
-                            hoverOffset: 6
-                        }
-                    ]
-                },
-
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: "70%",
-
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-
-                        tooltip: {
-                            displayColors: true,
-
-                            callbacks: {
-                                label:
-                                    function(contexto) {
-                                        const valor =
-                                            Number(
-                                                contexto.raw || 0
-                                            );
-
-                                        const percentagem =
-                                            totalVencido > 0
-                                                ? (
-                                                    valor /
-                                                    totalVencido
-                                                ) * 100
-                                                : 0;
-
-                                        return (
-                                            " " +
-                                            contexto.label +
-                                            ": " +
-                                            formatarMoeda(
-                                                valor
-                                            ) +
-                                            " (" +
-                                            percentagem.toFixed(
-                                                1
-                                            ) +
-                                            "%)"
-                                        );
-                                    }
-                            }
-                        }
-                    }
-                },
-
-                plugins: [
-                    {
-                        id:
-                            "textoCentroAging",
-
-                        afterDraw:
-                            function(grafico) {
-                                const contexto =
-                                    grafico.ctx;
-
-                                const areaGrafico =
-                                    grafico.chartArea;
-
-                                if (!areaGrafico) {
-                                    return;
-                                }
-
-                                const centroX =
-                                    (
-                                        areaGrafico.left +
-                                        areaGrafico.right
-                                    ) / 2;
-
-                                const centroY =
-                                    (
-                                        areaGrafico.top +
-                                        areaGrafico.bottom
-                                    ) / 2;
-
-                                contexto.save();
-                                contexto.textAlign =
-                                    "center";
-
-                                contexto.fillStyle =
-                                    getComputedStyle(
-                                        document.documentElement
-                                    )
-                                        .getPropertyValue(
-                                            "--muted"
-                                        )
-                                        .trim();
-
-                                contexto.font =
-                                    "600 10px Inter";
-
-                                contexto.fillText(
-                                    "Total vencido",
-                                    centroX,
-                                    centroY - 9
-                                );
-
-                                contexto.fillStyle =
-                                    getComputedStyle(
-                                        document.documentElement
-                                    )
-                                        .getPropertyValue(
-                                            "--text"
-                                        )
-                                        .trim();
-
-                                contexto.font =
-                                    "800 15px Inter";
-
-                                contexto.fillText(
-                                    formatarMoedaCompacta(
-                                        totalVencido
-                                    ),
-                                    centroX,
-                                    centroY + 14
-                                );
-
-                                contexto.restore();
-                            }
-                    }
-                ]
-            }
-        );
-
-    legenda.innerHTML =
-        aging.map(
-            function(item, indice) {
-                return `
-                    <div class="aging-legend-item">
-
-                        <div class="aging-legend-label">
-
-                            <span
-                                class="aging-legend-dot"
-                                style="background:${cores[indice]};">
-                            </span>
-
-                            <span>
-                                ${escaparHtml(item.label)}
-                            </span>
-
-                        </div>
-
-                        <span class="aging-legend-value">
-                            ${formatarMoedaCompacta(
-                                item.valor
-                            )}
-                        </span>
-
-                    </div>
-                `;
-            }
-        ).join("");
-}
-
 
 function calcularAntiguidadeDivida(
     faturas
@@ -1890,6 +1854,14 @@ function calcularAntiguidadeDivida(
                 );
 
             if (
+                String(
+                    fatura.estado || ""
+                ).toUpperCase() ===
+                    "CONTENCIOSO" ||
+                String(
+                    fatura.observacoes || ""
+                ).trim().toUpperCase() ===
+                    "CONTENCIOSO" ||
                 !vencimento ||
                 valor <= 0 ||
                 vencimento >= hoje
@@ -2198,34 +2170,19 @@ function renderizarInsightsAutomaticos(
         return;
     }
 
-    const listaFaturas =
-        Array.isArray(faturas)
-            ? faturas
-            : [];
+    const resumo =
+        DATA.dashboard;
 
-    const ranking =
-        Array.isArray(clientes)
-            ? clientes
-            : [];
-
-    const evolucao =
-        Array.isArray(historico)
-            ? historico
-            : [];
-
-    if (listaFaturas.length === 0) {
+    if (!Array.isArray(faturas) || faturas.length === 0) {
         grelha.innerHTML = `
             <div class="ai-insight-card information">
-
                 <div class="ai-insight-icon">
                     <i data-lucide="database"></i>
                 </div>
-
                 <div>
                     <strong>Sem dados para analisar</strong>
                     <p>Importe um ficheiro para gerar conclusões automáticas.</p>
                 </div>
-
             </div>
         `;
 
@@ -2236,265 +2193,145 @@ function renderizarInsightsAutomaticos(
         return;
     }
 
-    const totalPendente =
-        listaFaturas.reduce(
-            function(total, fatura) {
-                return (
-                    total +
-                    Number(
-                        fatura.valorPendente || 0
-                    )
-                );
-            },
-            0
+    const total =
+        resumo.valorPendente;
+
+    const percentagemDentroPrazo =
+        calcularPercentagem(
+            resumo.dentroPrazo.valorPendente,
+            total
         );
 
-    const maiorCliente =
-        ranking[0] || null;
+    const percentagemVencidas =
+        calcularPercentagem(
+            resumo.vencidas.valorPendente,
+            total
+        );
 
-    const pesoMaiorCliente =
-        (
-            maiorCliente &&
-            totalPendente > 0
-        )
-            ? (
-                Number(
-                    maiorCliente.valorPendente ||
-                    0
-                ) /
-                totalPendente
-            ) * 100
-            : 0;
-
-    const valorTop5 =
-        ranking
-            .slice(0, 5)
-            .reduce(
-                function(total, cliente) {
-                    return (
-                        total +
-                        Number(
-                            cliente.valorPendente ||
-                            0
-                        )
-                    );
-                },
-                0
-            );
-
-    const pesoTop5 =
-        totalPendente > 0
-            ? (
-                valorTop5 /
-                totalPendente
-            ) * 100
-            : 0;
+    const percentagemContencioso =
+        calcularPercentagem(
+            resumo.contencioso.valorPendente,
+            total
+        );
 
     const aging =
         calcularAntiguidadeDivida(
-            listaFaturas
+            faturas
         );
 
     const mais90 =
         aging[3];
 
-    let variacao = null;
-
-    if (evolucao.length >= 2) {
-        const atual =
-            Number(
-                evolucao[
-                    evolucao.length - 1
-                ].valorPendente || 0
-            );
-
-        const anterior =
-            Number(
-                evolucao[
-                    evolucao.length - 2
-                ].valorPendente || 0
-            );
-
-        if (anterior !== 0) {
-            variacao =
-                (
-                    (
-                        atual -
-                        anterior
-                    ) /
-                    anterior
-                ) * 100;
-        }
-    }
-
-    const insights = [];
-
-    if (maiorCliente) {
-        insights.push({
+    const insights = [
+        {
+            classe: "positive",
+            icone: "calendar-check-2",
+            metrica:
+                percentagemDentroPrazo
+                    .toFixed(1) + "%",
+            titulo:
+                "Valor ainda dentro do prazo",
+            texto:
+                formatarNumero(
+                    resumo.dentroPrazo
+                        .totalFaturas
+                ) +
+                " faturas representam " +
+                formatarMoeda(
+                    resumo.dentroPrazo
+                        .valorPendente
+                ) +
+                "."
+        },
+        {
             classe:
-                pesoMaiorCliente >= 20
+                percentagemVencidas >= 50
                     ? "critical"
                     : "warning",
-
-            icone: "building-2",
-
+            icone: "clock-alert",
             metrica:
-                pesoMaiorCliente.toFixed(1) +
-                "%",
-
+                percentagemVencidas
+                    .toFixed(1) + "%",
             titulo:
-                "Maior exposição num cliente",
-
+                "Valor vencido",
             texto:
-                (
-                    maiorCliente.nome ||
-                    maiorCliente.numeroCliente ||
-                    "O principal cliente"
+                formatarNumero(
+                    resumo.vencidas
+                        .totalFaturas
                 ) +
-                " representa " +
-                pesoMaiorCliente.toFixed(1) +
-                "% do valor pendente."
-        });
-    }
-
-    insights.push({
-        classe:
-            pesoTop5 >= 60
-                ? "critical"
-                : "information",
-
-        icone: "layers-3",
-
-        metrica:
-            pesoTop5.toFixed(1) +
-            "%",
-
-        titulo:
-            "Concentração nos cinco maiores",
-
-        texto:
-            "Os cinco maiores clientes concentram " +
-            formatarMoeda(
-                valorTop5
-            ) +
-            " da carteira pendente."
-    });
-
-    insights.push({
-        classe:
-            mais90.valor > 0
-                ? "critical"
-                : "positive",
-
-        icone:
-            mais90.valor > 0
-                ? "timer-off"
-                : "circle-check-big",
-
-        metrica:
-            formatarMoedaCompacta(
-                mais90.valor
-            ),
-
-        titulo:
-            "Dívida vencida há mais de 90 dias",
-
-        texto:
-            formatarNumero(
-                mais90.quantidade
-            ) +
-            " faturas encontram-se nesta faixa crítica."
-    });
-
-    if (variacao === null) {
-        insights.push({
-            classe: "information",
-            icone: "chart-line",
-            metrica: "—",
-            titulo:
-                "Evolução entre importações",
-            texto:
-                "É necessária pelo menos mais uma importação para calcular a variação."
-        });
-
-    } else {
-        const diminuiu =
-            variacao < 0;
-
-        insights.push({
+                " faturas vencidas totalizam " +
+                formatarMoeda(
+                    resumo.vencidas
+                        .valorPendente
+                ) +
+                "."
+        },
+        {
             classe:
-                diminuiu
-                    ? "positive"
-                    : (
-                        variacao > 0
-                            ? "warning"
-                            : "information"
-                    ),
-
-            icone:
-                diminuiu
-                    ? "trending-down"
-                    : (
-                        variacao > 0
-                            ? "trending-up"
-                            : "minus"
-                    ),
-
+                resumo.contencioso
+                    .valorPendente > 0
+                    ? "critical"
+                    : "positive",
+            icone: "scale",
             metrica:
-                (
-                    variacao > 0
-                        ? "+"
-                        : ""
-                ) +
-                variacao.toFixed(1) +
-                "%",
-
+                percentagemContencioso
+                    .toFixed(1) + "%",
             titulo:
-                "Variação desde a importação anterior",
-
+                "Valor em contencioso",
             texto:
-                diminuiu
-                    ? "O valor pendente diminuiu face à importação anterior."
-                    : (
-                        variacao > 0
-                            ? "O valor pendente aumentou face à importação anterior."
-                            : "O valor pendente manteve-se inalterado."
-                    )
-        });
-    }
+                formatarNumero(
+                    resumo.contencioso
+                        .totalFaturas
+                ) +
+                " faturas totalizam " +
+                formatarMoeda(
+                    resumo.contencioso
+                        .valorPendente
+                ) +
+                "."
+        },
+        {
+            classe:
+                mais90.valor > 0
+                    ? "critical"
+                    : "positive",
+            icone:
+                mais90.valor > 0
+                    ? "timer-off"
+                    : "circle-check-big",
+            metrica:
+                formatarMoedaCompacta(
+                    mais90.valor
+                ),
+            titulo:
+                "Vencidas há mais de 90 dias",
+            texto:
+                formatarNumero(
+                    mais90.quantidade
+                ) +
+                " faturas, excluindo todas as que estão em contencioso."
+        }
+    ];
 
     grelha.innerHTML =
         insights.map(
             function(insight) {
                 return `
                     <div class="ai-insight-card ${insight.classe}">
-
                         <div class="ai-insight-icon">
                             <i data-lucide="${insight.icone}"></i>
                         </div>
-
                         <div>
-
                             <span class="ai-insight-metric">
-                                ${escaparHtml(
-                                    insight.metrica
-                                )}
+                                ${escaparHtml(insight.metrica)}
                             </span>
-
                             <strong>
-                                ${escaparHtml(
-                                    insight.titulo
-                                )}
+                                ${escaparHtml(insight.titulo)}
                             </strong>
-
                             <p>
-                                ${escaparHtml(
-                                    insight.texto
-                                )}
+                                ${escaparHtml(insight.texto)}
                             </p>
-
                         </div>
-
                     </div>
                 `;
             }
@@ -2503,6 +2340,303 @@ function renderizarInsightsAutomaticos(
     if (window.lucide) {
         window.lucide.createIcons();
     }
+}
+
+function calcularPercentagem(
+    parcela,
+    total
+) {
+    const valorTotal =
+        Number(total || 0);
+
+    if (valorTotal <= 0) {
+        return 0;
+    }
+
+    return (
+        Number(parcela || 0) /
+        valorTotal
+    ) * 100;
+}
+
+
+function obterEstadoFaturaFrontend(
+    fatura
+) {
+    const estadoApi =
+        String(
+            fatura.estado || ""
+        )
+            .trim()
+            .toUpperCase();
+
+    if (
+        estadoApi === "CONTENCIOSO" ||
+        estadoApi === "VENCIDA" ||
+        estadoApi === "DENTRO_PRAZO"
+    ) {
+        return estadoApi;
+    }
+
+    if (
+        String(
+            fatura.observacoes || ""
+        )
+            .trim()
+            .toUpperCase() ===
+        "CONTENCIOSO"
+    ) {
+        return "CONTENCIOSO";
+    }
+
+    const vencimento =
+        converterDataFrontend(
+            fatura.dataVencimento
+        );
+
+    if (!vencimento) {
+        return "DENTRO_PRAZO";
+    }
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    return vencimento < hoje
+        ? "VENCIDA"
+        : "DENTRO_PRAZO";
+}
+
+
+function obterSituacaoTemporalFatura(
+    fatura
+) {
+    const estado =
+        obterEstadoFaturaFrontend(
+            fatura
+        );
+
+    if (estado === "CONTENCIOSO") {
+        return "Em contencioso";
+    }
+
+    const vencimento =
+        converterDataFrontend(
+            fatura.dataVencimento
+        );
+
+    if (!vencimento) {
+        return "Sem data";
+    }
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const diferenca =
+        Math.ceil(
+            (
+                vencimento.getTime() -
+                hoje.getTime()
+            ) /
+            86400000
+        );
+
+    if (diferenca < 0) {
+        const dias =
+            Math.abs(diferenca);
+
+        return (
+            "Vencida há " +
+            dias +
+            (
+                dias === 1
+                    ? " dia"
+                    : " dias"
+            )
+        );
+    }
+
+    if (diferenca === 0) {
+        return "Vence hoje";
+    }
+
+    return (
+        "Faltam " +
+        diferenca +
+        (
+            diferenca === 1
+                ? " dia"
+                : " dias"
+        )
+    );
+}
+
+
+function obterRotuloEstadoFatura(
+    estado
+) {
+    if (estado === "CONTENCIOSO") {
+        return "Contencioso";
+    }
+
+    if (estado === "VENCIDA") {
+        return "Vencida";
+    }
+
+    return "Dentro do prazo";
+}
+
+
+function renderizarTabelaFaturas() {
+    if (!ELEMENTOS.invoicesTableBody) {
+        return;
+    }
+
+    const filtradas =
+        DATA.faturas.filter(
+            function(fatura) {
+                const estado =
+                    obterEstadoFaturaFrontend(
+                        fatura
+                    );
+
+                const correspondeEstado =
+                    filtroEstadoFaturas ===
+                        "TODAS" ||
+                    estado ===
+                        filtroEstadoFaturas;
+
+                const textoPesquisa =
+                    [
+                        fatura.numeroCliente,
+                        fatura.nome,
+                        fatura.documento,
+                        fatura.numeroDocumento
+                    ]
+                        .join(" ")
+                        .toLowerCase();
+
+                const correspondePesquisa =
+                    !pesquisaFaturas ||
+                    textoPesquisa.includes(
+                        pesquisaFaturas
+                    );
+
+                return (
+                    correspondeEstado &&
+                    correspondePesquisa
+                );
+            }
+        );
+
+    if (ELEMENTOS.faturasResumo) {
+        ELEMENTOS.faturasResumo.textContent =
+            formatarNumero(
+                filtradas.length
+            ) +
+            (
+                filtradas.length === 1
+                    ? " fatura"
+                    : " faturas"
+            );
+    }
+
+    if (filtradas.length === 0) {
+        ELEMENTOS.invoicesTableBody
+            .innerHTML = `
+                <tr>
+                    <td colspan="6">
+                        <div class="table-loading-state">
+                            Não foram encontradas faturas com estes filtros.
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+        return;
+    }
+
+    ELEMENTOS.invoicesTableBody
+        .innerHTML =
+        filtradas.map(
+            function(fatura) {
+                const estado =
+                    obterEstadoFaturaFrontend(
+                        fatura
+                    );
+
+                const documento =
+                    [
+                        fatura.documento,
+                        fatura.numeroDocumento
+                    ]
+                        .filter(Boolean)
+                        .join(" ");
+
+                return `
+                    <tr>
+                        <td>
+                            <div class="invoice-client-cell">
+                                <strong>
+                                    ${escaparHtml(
+                                        fatura.nome ||
+                                        "Cliente sem nome"
+                                    )}
+                                </strong>
+                                <span>
+                                    ${escaparHtml(
+                                        fatura.numeroCliente ||
+                                        "—"
+                                    )}
+                                </span>
+                            </div>
+                        </td>
+
+                        <td>
+                            <strong class="invoice-document">
+                                ${escaparHtml(
+                                    documento || "—"
+                                )}
+                            </strong>
+                        </td>
+
+                        <td>
+                            ${escaparHtml(
+                                fatura.dataVencimento ||
+                                "—"
+                            )}
+                        </td>
+
+                        <td>
+                            <span class="invoice-status-badge ${estado.toLowerCase()}">
+                                ${escaparHtml(
+                                    obterRotuloEstadoFatura(
+                                        estado
+                                    )
+                                )}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="invoice-time-status ${estado.toLowerCase()}">
+                                ${escaparHtml(
+                                    obterSituacaoTemporalFatura(
+                                        fatura
+                                    )
+                                )}
+                            </span>
+                        </td>
+
+                        <td class="align-right">
+                            <strong class="invoice-amount">
+                                ${formatarMoeda(
+                                    fatura.valorPendente
+                                )}
+                            </strong>
+                        </td>
+                    </tr>
+                `;
+            }
+        ).join("");
 }
 
 
@@ -3859,48 +3993,24 @@ function atualizarUltimaImportacao(
 function atualizarDashboardAposImportacao(
     resultado
 ) {
-    ELEMENTOS.kpiClientes.textContent =
-        formatarNumero(
-            resultado.totalClientes ??
-            DATA.dashboard.totalClientes
-        );
-
-    ELEMENTOS.kpiFaturas.textContent =
-        formatarNumero(
-            resultado.totalFaturas ??
-            DATA.dashboard.totalFaturas
-        );
-
-    ELEMENTOS.kpiValorPendente.textContent =
-        formatarMoeda(
-            resultado.valorPendente ??
-            DATA.dashboard.valorPendente
-        );
-
-    ELEMENTOS.kpiVencidas.textContent =
-        formatarNumero(
-            DATA.dashboard.totalVencidas
-        );
-
     ELEMENTOS.dashboardLastImport
         .innerHTML = `
             <i data-lucide="clock-3"></i>
-
             <span>
                 Atualizado em
                 ${escaparHtml(
-                    resultado
-                        .dataImportacao ||
+                    resultado.dataImportacao ||
                     "agora"
                 )}
             </span>
         `;
 
+    carregarDadosAplicacao();
+
     if (window.lucide) {
         window.lucide.createIcons();
     }
 }
-
 
 function bloquearInterfaceImportacao() {
     ELEMENTOS.confirmImportBtn.disabled =

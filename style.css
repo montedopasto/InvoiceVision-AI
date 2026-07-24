@@ -1962,3 +1962,390 @@ kbd {
         height: 330px;
     }
 }
+
+
+/* ==========================================================================
+   ESTADO DAS PENDÊNCIAS
+   ========================================================================== */
+
+.pending-overview {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.8fr) minmax(0, 2.2fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.pending-total-card,
+.pending-status-card {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+}
+
+.pending-total-card {
+    min-height: 188px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 22px;
+}
+
+.pending-total-copy h3 {
+    margin-top: 5px;
+    color: var(--text-soft);
+    font-size: 13px;
+}
+
+.pending-total-value {
+    display: block;
+    margin-top: 12px;
+    color: var(--text);
+    font-size: clamp(25px, 2.4vw, 38px);
+    line-height: 1;
+    letter-spacing: -1.8px;
+}
+
+.pending-total-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.pending-total-meta div {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 11px;
+    border-top: 1px solid var(--border);
+}
+
+.pending-total-meta span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 650;
+}
+
+.pending-total-meta strong {
+    color: var(--text);
+    font-size: 15px;
+}
+
+.pending-status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.pending-status-card {
+    min-width: 0;
+    min-height: 188px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px;
+    overflow: hidden;
+    position: relative;
+}
+
+.pending-status-card::after {
+    content: "";
+    position: absolute;
+    inset: auto -35px -60px auto;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    opacity: 0.12;
+}
+
+.pending-status-card.on-time::after {
+    background: var(--success);
+}
+
+.pending-status-card.overdue::after {
+    background: var(--amber);
+}
+
+.pending-status-card.litigation::after {
+    background: var(--danger);
+}
+
+.pending-status-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.pending-status-icon {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+}
+
+.pending-status-card.on-time .pending-status-icon {
+    color: var(--success);
+    background: var(--success-soft);
+}
+
+.pending-status-card.overdue .pending-status-icon {
+    color: var(--amber);
+    background: var(--amber-soft);
+}
+
+.pending-status-card.litigation .pending-status-icon {
+    color: var(--danger);
+    background: var(--danger-soft);
+}
+
+.pending-status-value {
+    display: block;
+    position: relative;
+    z-index: 1;
+    color: var(--text);
+    font-size: clamp(20px, 1.8vw, 29px);
+    line-height: 1;
+    letter-spacing: -1px;
+}
+
+.pending-status-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    position: relative;
+    z-index: 1;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.pending-status-footer strong {
+    font-size: 11px;
+}
+
+.pending-status-card.on-time .pending-status-footer strong {
+    color: var(--success);
+}
+
+.pending-status-card.overdue .pending-status-footer strong {
+    color: var(--amber);
+}
+
+.pending-status-card.litigation .pending-status-footer strong {
+    color: var(--danger);
+}
+
+/* ==========================================================================
+   FATURAS
+   ========================================================================== */
+
+.invoices-page-heading {
+    margin-bottom: 16px;
+}
+
+.invoices-panel {
+    padding: 0;
+    overflow: hidden;
+}
+
+.invoices-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.invoice-status-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.invoice-filter {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-soft);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 750;
+    transition: 0.18s ease;
+}
+
+.invoice-filter:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+}
+
+.invoice-filter.active {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary-dark);
+}
+
+.invoice-search {
+    width: min(310px, 100%);
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface-soft);
+    color: var(--muted);
+}
+
+.invoice-search svg {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+}
+
+.invoice-search input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font-size: 10px;
+}
+
+.invoices-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.invoices-table {
+    width: 100%;
+    min-width: 900px;
+    border-collapse: collapse;
+}
+
+.invoices-table th {
+    padding: 12px 16px;
+    background: var(--surface-soft);
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.invoices-table td {
+    padding: 13px 16px;
+    border-top: 1px solid var(--border);
+    color: var(--text-soft);
+    font-size: 10px;
+    vertical-align: middle;
+}
+
+.invoices-table tbody tr:hover {
+    background: var(--surface-soft);
+}
+
+.align-right {
+    text-align: right !important;
+}
+
+.invoice-client-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.invoice-client-cell strong,
+.invoice-document,
+.invoice-amount {
+    color: var(--text);
+    font-size: 10px;
+}
+
+.invoice-client-cell span {
+    color: var(--muted);
+    font-size: 9px;
+}
+
+.invoice-status-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 25px;
+    padding: 0 9px;
+    border-radius: 999px;
+    font-size: 8px;
+    font-weight: 850;
+    letter-spacing: 0.025em;
+    white-space: nowrap;
+}
+
+.invoice-status-badge.dentro_prazo {
+    background: var(--success-soft);
+    color: var(--success);
+}
+
+.invoice-status-badge.vencida {
+    background: var(--amber-soft);
+    color: var(--amber);
+}
+
+.invoice-status-badge.contencioso {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.invoice-time-status {
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.invoice-time-status.vencida {
+    color: var(--amber);
+    font-weight: 700;
+}
+
+.invoice-time-status.contencioso {
+    color: var(--danger);
+    font-weight: 750;
+}
+
+.table-loading-state {
+    padding: 45px 20px;
+    color: var(--muted);
+    text-align: center;
+    font-size: 11px;
+}
+
+@media (max-width: 1180px) {
+    .pending-overview {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 820px) {
+    .pending-status-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .invoices-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .invoice-search {
+        width: 100%;
+    }
+}
