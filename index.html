@@ -13,7 +13,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="style-v2-4.css?v=2.4.0">
+<link rel="stylesheet" href="style-v2-5.css?v=2.5.0">
 
 </head>
 
@@ -187,367 +187,102 @@
 
             <section
                 id="page-dashboard"
-                class="app-page active"
+                class="app-page active executive-dashboard"
                 data-title="Dashboard">
 
-                <div class="page-heading">
-
+                <div class="page-heading executive-heading">
                     <div>
-
-                        <span class="eyebrow">
-                            Visão geral
-                        </span>
-
-                        <h2>
-                            Controlo inteligente de faturas
-                        </h2>
-
-                        <p>
-                            Analise valores pendentes, clientes e evolução das importações.
-                        </p>
-
+                        <span class="eyebrow">Executive control center</span>
+                        <h2>Visão financeira em tempo real</h2>
+                        <p>Prioridades, risco e evolução da carteira numa leitura imediata.</p>
                     </div>
-
-                    <div
-                        id="dashboardLastImport"
-                        class="last-update-pill">
-
-                        <i data-lucide="clock-3"></i>
-
-                        <span>
-                            Sem importações nesta sessão
-                        </span>
-
+                    <div id="dashboardLastImport" class="last-update-pill">
+                        <i data-lucide="clock-3"></i><span>Sem importações nesta sessão</span>
                     </div>
-
                 </div>
 
-                <div class="pending-overview">
-
-                    <article class="pending-total-card">
-
-                        <div class="pending-total-copy">
-
-                            <span class="panel-eyebrow">
-                                Estado das Pendências
-                            </span>
-
-                            <h3>Total pendente</h3>
-
-                            <strong
-                                id="kpiValorPendente"
-                                class="pending-total-value">
-                                —
-                            </strong>
-
-                        </div>
-
-                        <div class="pending-total-meta">
-
+                <div class="executive-hero-grid">
+                    <article class="executive-total-card">
+                        <div class="executive-total-top">
                             <div>
-                                <span>Clientes</span>
-                                <strong id="kpiClientes">—</strong>
-                            </div>
-
-                            <div>
-                                <span>Faturas</span>
-                                <strong id="kpiFaturas">—</strong>
-                            </div>
-
-                        </div>
-
-                    </article>
-
-                    <div class="pending-status-grid">
-
-                        <article class="pending-status-card on-time">
-
-                            <div class="pending-status-header">
-
-                                <div class="pending-status-icon">
-                                    <i data-lucide="calendar-check-2"></i>
-                                </div>
-
-                                <span>Dentro do prazo</span>
-
-                            </div>
-
-                            <strong
-                                id="kpiDentroPrazoValor"
-                                class="pending-status-value">
-                                —
-                            </strong>
-
-                            <div class="pending-status-footer">
-
-                                <span id="kpiDentroPrazoFaturas">
-                                    — faturas
-                                </span>
-
-                                <strong id="kpiDentroPrazoPercentagem">
-                                    —%
-                                </strong>
-
-                            </div>
-
-                        </article>
-
-                        <article class="pending-status-card overdue">
-
-                            <div class="pending-status-header">
-
-                                <div class="pending-status-icon">
-                                    <i data-lucide="clock-alert"></i>
-                                </div>
-
-                                <span>Vencidas</span>
-
-                            </div>
-
-                            <strong
-                                id="kpiVencidasValor"
-                                class="pending-status-value">
-                                —
-                            </strong>
-
-                            <div class="pending-status-footer">
-
-                                <span id="kpiVencidas">
-                                    — faturas
-                                </span>
-
-                                <strong id="kpiVencidasPercentagem">
-                                    —%
-                                </strong>
-
-                            </div>
-
-                        </article>
-
-                        <article class="pending-status-card litigation">
-
-                            <div class="pending-status-header">
-
-                                <div class="pending-status-icon">
-                                    <i data-lucide="scale"></i>
-                                </div>
-
-                                <span>Contencioso</span>
-
-                            </div>
-
-                            <strong
-                                id="kpiContenciosoValor"
-                                class="pending-status-value">
-                                —
-                            </strong>
-
-                            <div class="pending-status-footer">
-
-                                <span id="kpiContenciosoFaturas">
-                                    — faturas
-                                </span>
-
-                                <strong id="kpiContenciosoPercentagem">
-                                    —%
-                                </strong>
-
-                            </div>
-
-                        </article>
-
-                    </div>
-
-                </div>
-
-                <div class="dashboard-grid">
-
-                    <article class="panel panel-large">
-
-                        <div class="panel-header">
-
-                            <div>
-                                <span class="panel-eyebrow">Evolução</span>
+                                <span class="panel-eyebrow">Exposição total</span>
                                 <h3>Valor pendente</h3>
                             </div>
-
-                            <button
-                                class="panel-action"
-                                type="button"
-                                data-page-link="historico">
-
-                                Ver histórico
-                                <i data-lucide="arrow-up-right"></i>
-
-                            </button>
-
+                            <div class="executive-live"><span></span> Dados atuais</div>
                         </div>
-
-                        <div class="empty-visual">
-
-                            <div class="empty-visual-icon">
-                                <i data-lucide="chart-no-axes-combined"></i>
-                            </div>
-
-                            <strong>
-                                O gráfico será apresentado aqui
-                            </strong>
-
-                            <p>
-                                Ficará disponível quando ligarmos os dados do histórico ao Dashboard.
-                            </p>
-
+                        <strong id="kpiValorPendente" class="executive-total-value">—</strong>
+                        <div class="executive-total-stats">
+                            <div><span>Clientes</span><strong id="kpiClientes">—</strong></div>
+                            <div><span>Faturas</span><strong id="kpiFaturas">—</strong></div>
+                            <div><span>Ticket médio</span><strong id="executiveAverageTicket">—</strong></div>
                         </div>
-
                     </article>
 
-                    <article class="panel">
-
-                        <div class="panel-header">
-
-                            <div>
-                                <span class="panel-eyebrow">Prioridades</span>
-                                <h3>Centro de Alertas</h3>
-                            </div>
-
-                            <div class="panel-icon">
-                                <i data-lucide="bell-ring"></i>
-                            </div>
-
+                    <article class="health-score-card">
+                        <div class="health-score-copy">
+                            <span class="panel-eyebrow">AI Health Score</span>
+                            <h3>Saúde da carteira</h3>
+                            <p id="healthScoreMessage">A analisar a exposição financeira.</p>
                         </div>
-
-                        <div class="alert-list">
-
-                            <div class="alert-item neutral">
-
-                                <div class="alert-marker"></div>
-
-                                <div>
-
-                                    <strong>
-                                        Aguardamos os dados
-                                    </strong>
-
-                                    <p>
-                                        Os alertas serão calculados quando ligarmos os dados do Dashboard.
-                                    </p>
-
-                                </div>
-
-                            </div>
-
+                        <div id="healthScoreRing" class="health-score-ring" style="--score:0">
+                            <div><strong id="healthScoreValue">—</strong><span>/100</span></div>
                         </div>
-
                     </article>
-
                 </div>
 
-                <div class="dashboard-grid secondary-grid">
-
-                    <article class="panel">
-
-                        <div class="panel-header">
-
-                            <div>
-                                <span class="panel-eyebrow">Risco</span>
-                                <h3>Antiguidade da dívida vencida</h3>
-                            </div>
-
-                            <div class="panel-icon amber-icon">
-                                <i data-lucide="calendar-clock"></i>
-                            </div>
-
-                        </div>
-
-                        <div
-                            id="agingChartArea"
-                            class="dashboard-chart-area compact-chart-area">
-
-                            <canvas
-                                id="agingDebtChart"
-                                aria-label="Antiguidade da dívida vencida"
-                                role="img">
-                            </canvas>
-
-                        </div>
-
-                        <div
-                            id="agingLegend"
-                            class="aging-legend">
-                        </div>
-
+                <div class="executive-status-grid">
+                    <article class="executive-status-card on-time">
+                        <div class="status-card-icon"><i data-lucide="calendar-check-2"></i></div>
+                        <div><span>Dentro do prazo</span><strong id="kpiDentroPrazoValor">—</strong></div>
+                        <div class="status-card-meta"><span id="kpiDentroPrazoFaturas">— faturas</span><b id="kpiDentroPrazoPercentagem">—%</b></div>
                     </article>
-
-                    <article class="panel">
-
-                        <div class="panel-header">
-
-                            <div>
-                                <span class="panel-eyebrow">Concentração</span>
-                                <h3>Top 10 Clientes</h3>
-                            </div>
-
-                            <button
-                                class="panel-action"
-                                type="button"
-                                data-page-link="clientes">
-
-                                Ver clientes
-                                <i data-lucide="arrow-up-right"></i>
-
-                            </button>
-
-                        </div>
-
-                        <div
-                            id="topClientsChartArea"
-                            class="dashboard-chart-area top-clients-chart-area">
-
-                            <canvas
-                                id="topClientsChart"
-                                aria-label="Top 10 clientes por valor pendente"
-                                role="img">
-                            </canvas>
-
-                        </div>
-
+                    <article class="executive-status-card overdue">
+                        <div class="status-card-icon"><i data-lucide="clock-alert"></i></div>
+                        <div><span>Vencidas</span><strong id="kpiVencidasValor">—</strong></div>
+                        <div class="status-card-meta"><span id="kpiVencidas">— faturas</span><b id="kpiVencidasPercentagem">—%</b></div>
                     </article>
-
+                    <article class="executive-status-card litigation">
+                        <div class="status-card-icon"><i data-lucide="scale"></i></div>
+                        <div><span>Contencioso</span><strong id="kpiContenciosoValor">—</strong></div>
+                        <div class="status-card-meta"><span id="kpiContenciosoFaturas">— faturas</span><b id="kpiContenciosoPercentagem">—%</b></div>
+                    </article>
                 </div>
 
-                <article class="panel ai-insights-panel">
-
-                    <div class="panel-header">
-
-                        <div>
-                            <span class="panel-eyebrow">AI Intelligence</span>
-                            <h3>Leitura automática da carteira</h3>
+                <div class="executive-main-grid">
+                    <article class="panel panel-large executive-chart-panel">
+                        <div class="panel-header">
+                            <div><span class="panel-eyebrow">Tendência</span><h3>Evolução do valor pendente</h3></div>
+                            <button class="panel-action" type="button" data-page-link="historico">Analisar histórico <i data-lucide="arrow-up-right"></i></button>
                         </div>
+                        <div class="empty-visual"><div class="empty-visual-icon"><i data-lucide="chart-no-axes-combined"></i></div><strong>A preparar evolução</strong><p>O gráfico será preenchido com o histórico disponível.</p></div>
+                    </article>
 
-                        <div class="panel-icon ai-icon">
-                            <i data-lucide="sparkles"></i>
-                        </div>
+                    <article class="panel executive-alert-panel">
+                        <div class="panel-header"><div><span class="panel-eyebrow">Ação imediata</span><h3>Centro de Alertas</h3></div><div class="panel-icon"><i data-lucide="bell-ring"></i></div></div>
+                        <div class="alert-list"><div class="alert-item neutral"><div class="alert-marker"></div><div><strong>A analisar os dados</strong><p>As prioridades serão calculadas automaticamente.</p></div></div></div>
+                    </article>
+                </div>
 
-                    </div>
+                <div class="executive-secondary-grid">
+                    <article class="panel">
+                        <div class="panel-header"><div><span class="panel-eyebrow">Aging</span><h3>Antiguidade da dívida vencida</h3></div><div class="panel-icon amber-icon"><i data-lucide="calendar-clock"></i></div></div>
+                        <div id="agingChartArea" class="dashboard-chart-area compact-chart-area"><canvas id="agingDebtChart" aria-label="Antiguidade da dívida vencida" role="img"></canvas></div>
+                        <div id="agingLegend" class="aging-legend"></div>
+                    </article>
+                    <article class="panel">
+                        <div class="panel-header"><div><span class="panel-eyebrow">Concentração</span><h3>Top 10 Clientes</h3></div><button class="panel-action" type="button" data-page-link="clientes">Ver clientes <i data-lucide="arrow-up-right"></i></button></div>
+                        <div id="topClientsChartArea" class="dashboard-chart-area top-clients-chart-area"><canvas id="topClientsChart" aria-label="Top 10 clientes por valor pendente" role="img"></canvas></div>
+                    </article>
+                    <article class="panel branch-risk-panel">
+                        <div class="panel-header"><div><span class="panel-eyebrow">Filiais</span><h3>Mapa de exposição</h3></div><div class="panel-icon"><i data-lucide="building-2"></i></div></div>
+                        <div id="branchHeatmap" class="branch-heatmap"><div class="chart-empty-state"><i data-lucide="loader-circle"></i><strong>A analisar filiais</strong></div></div>
+                    </article>
+                </div>
 
-                    <div
-                        id="aiInsightsGrid"
-                        class="ai-insights-grid">
-
-                        <div class="ai-insight-card loading">
-                            <div class="ai-insight-icon">
-                                <i data-lucide="loader-circle"></i>
-                            </div>
-                            <div>
-                                <strong>A analisar os dados</strong>
-                                <p>As conclusões serão apresentadas automaticamente.</p>
-                            </div>
-                        </div>
-
-                    </div>
-
+                <article class="panel ai-insights-panel executive-ai-panel">
+                    <div class="panel-header"><div><span class="panel-eyebrow">AI Intelligence</span><h3>Leitura automática da carteira</h3></div><div class="panel-icon ai-icon"><i data-lucide="sparkles"></i></div></div>
+                    <div id="aiInsightsGrid" class="ai-insights-grid"><div class="ai-insight-card loading"><div class="ai-insight-icon"><i data-lucide="loader-circle"></i></div><div><strong>A analisar os dados</strong><p>As conclusões serão apresentadas automaticamente.</p></div></div></div>
                 </article>
-
             </section>
 
             <section
@@ -1185,7 +920,7 @@
 </div>
 
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="app-v2-4.js?v=2.4.0"></script>
+<script src="app-v2-5.js?v=2.5.0"></script>
 
 </body>
 
