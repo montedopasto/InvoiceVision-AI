@@ -1389,7 +1389,7 @@ async function renderizarGraficoEvolucao(
 ) {
     const painel =
         document.querySelector(
-            ".dashboard-grid .panel-large"
+            ".executive-chart-panel"
         );
 
     if (!painel) {
@@ -1443,7 +1443,7 @@ async function renderizarGraficoEvolucao(
             "chart-container"
         )
     ) {
-        zonaAtual.outerHTML = `
+        const novoContainer = `
             <div
                 class="chart-container"
                 style="
@@ -1462,6 +1462,11 @@ async function renderizarGraficoEvolucao(
 
             </div>
         `;
+        if (zonaAtual) {
+            zonaAtual.outerHTML = novoContainer;
+        } else {
+            painel.insertAdjacentHTML("beforeend", novoContainer);
+        }
     }
 
     try {
@@ -5413,7 +5418,7 @@ function renderizarDashboardExecutive() {
     const vencido = Number(DATA.dashboard.vencidas.valorPendente || 0);
     const contencioso = Number(DATA.dashboard.contencioso.valorPendente || 0);
     const faturas = Number(DATA.dashboard.totalFaturas || 0);
-    const ticket = faturas > 0 ? total / faturas : 0;
+    const faturaMedia = faturas > 0 ? total / faturas : 0;
     const riscoPct = total > 0 ? ((vencido + contencioso) / total) * 100 : 0;
     const legalPct = total > 0 ? (contencioso / total) * 100 : 0;
     const score = Math.max(0, Math.min(100, Math.round(100 - riscoPct * .72 - legalPct * .55)));
@@ -5422,7 +5427,7 @@ function renderizarDashboardExecutive() {
     const scoreEl = document.getElementById('healthScoreValue');
     const ring = document.getElementById('healthScoreRing');
     const msg = document.getElementById('healthScoreMessage');
-    if (ticketEl) ticketEl.textContent = formatarMoeda(ticket);
+    if (ticketEl) ticketEl.textContent = formatarMoeda(faturaMedia);
     if (scoreEl) scoreEl.textContent = String(score);
     if (ring) ring.style.setProperty('--score', String(score));
     if (msg) {
@@ -5434,32 +5439,48 @@ function renderizarDashboardExecutive() {
                     ? 'Exposição relevante. Priorize vencidas e maiores clientes.'
                     : 'Risco elevado. É necessária intervenção imediata.';
     }
-    renderizarMapaFiliaisExecutive();
+    renderizarFaturasPrioritariasExecutive();
 }
 
-function renderizarMapaFiliaisExecutive() {
-    const area = document.getElementById('branchHeatmap');
+function renderizarFaturasPrioritariasExecutive() {
+    const area = document.getElementById('priorityInvoices');
     if (!area) return;
-    const mapa = new Map();
-    (Array.isArray(DATA.faturas) ? DATA.faturas : []).forEach(function(fatura) {
-        const filial = String(fatura.filial || fatura.Filial || fatura.sucursal || 'Sem filial').trim() || 'Sem filial';
-        const valor = Number(fatura.valorPendente || 0);
-        const estado = obterEstadoFaturaFrontend(fatura);
-        if (!mapa.has(filial)) mapa.set(filial, { nome: filial, total: 0, risco: 0, faturas: 0 });
-        const item = mapa.get(filial);
-        item.total += valor;
-        item.faturas += 1;
-        if (estado === 'VENCIDA' || estado === 'CONTENCIOSO') item.risco += valor;
-    });
-    const linhas = Array.from(mapa.values()).sort(function(a,b){ return b.total-a.total; }).slice(0,8);
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const linhas = (Array.isArray(DATA.faturas) ? DATA.faturas : [])
+        .filter(function(fatura) {
+            return obterEstadoFaturaFrontend(fatura) === 'VENCIDA';
+        })
+        .map(function(fatura) {
+            const data = converterDataFrontend(fatura.dataVencimento);
+            const dias = data instanceof Date && !isNaN(data)
+                ? Math.max(0, Math.floor((hoje - data) / 86400000))
+                : Math.max(0, Number(fatura.dias || 0));
+            return {
+                cliente: String(fatura.nome || fatura.cliente || 'Cliente sem nome').trim(),
+                documento: String(fatura.numeroDocumento || fatura.documento || fatura.numero || '').trim(),
+                valor: Number(fatura.valorPendente || 0),
+                dias: dias
+            };
+        })
+        .sort(function(a, b) {
+            const prioridadeA = a.valor * (1 + Math.min(a.dias, 180) / 180);
+            const prioridadeB = b.valor * (1 + Math.min(b.dias, 180) / 180);
+            return prioridadeB - prioridadeA;
+        })
+        .slice(0, 8);
+
     if (!linhas.length) {
-        area.innerHTML = '<div class="chart-empty-state"><i data-lucide="building-2"></i><strong>Sem filiais para apresentar</strong><p>O mapa será preenchido quando existirem dados.</p></div>';
+        area.innerHTML = '<div class="chart-empty-state"><i data-lucide="badge-check"></i><strong>Sem faturas vencidas</strong><p>Não existem documentos vencidos para priorizar.</p></div>';
     } else {
         area.innerHTML = linhas.map(function(item) {
-            const pct = item.total > 0 ? item.risco / item.total * 100 : 0;
-            const classe = pct >= 60 ? 'branch-risk-high' : pct >= 30 ? 'branch-risk-medium' : 'branch-risk-low';
-            return '<div class="branch-heat-row '+classe+'"><div><strong>'+escaparHtml(item.nome)+'</strong><span>'+formatarNumero(item.faturas)+' faturas · '+pct.toFixed(0)+'% em risco</span></div><div class="branch-heat-value"><b>'+formatarMoedaCompacta(item.total)+'</b></div></div>';
+            const classe = item.dias >= 90 ? 'branch-risk-high' : item.dias >= 30 ? 'branch-risk-medium' : 'branch-risk-low';
+            const detalhe = (item.documento ? escaparHtml(item.documento) + ' · ' : '') + formatarNumero(item.dias) + ' dias em atraso';
+            return '<div class="branch-heat-row '+classe+'"><div><strong>'+escaparHtml(item.cliente)+'</strong><span>'+detalhe+'</span></div><div class="branch-heat-value"><b>'+formatarMoedaCompacta(item.valor)+'</b></div></div>';
         }).join('');
     }
+
     if (window.lucide) window.lucide.createIcons();
 }
