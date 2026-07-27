@@ -13,7 +13,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="style-v2-3.css?v=2.3.0">
+<link rel="stylesheet" href="style-v2-4.css?v=2.4.0">
 
 </head>
 
@@ -84,7 +84,7 @@
 
         <div class="sidebar-spacer"></div>
 
-        <span class="app-version-marker">v2.3 · Histórico + AI</span>
+        <span class="app-version-marker">v2.4 · AI Intelligence PRO</span>
 
         <div class="sidebar-import-card">
 
@@ -839,19 +839,33 @@
 
                 <div class="page-heading ai-page-heading">
                     <div><span class="eyebrow">Análise inteligente</span><h2>AI Intelligence</h2><p>Leitura automática dos riscos, concentrações e prioridades das faturas pendentes.</p></div>
-                    <button id="refreshAiBtn" class="primary-btn" type="button"><i data-lucide="refresh-cw"></i><span>Atualizar análise</span></button>
+                    <div class="ai-header-actions">
+                        <button id="refreshAiBtn" class="secondary-btn" type="button"><i data-lucide="refresh-cw"></i><span>Atualizar análise</span></button>
+                        <button id="generateAiReportBtn" class="primary-btn" type="button"><i data-lucide="file-text"></i><span>Gerar Relatório Executivo</span></button>
+                    </div>
                 </div>
 
-                <article class="ai-executive-card">
+                <section class="ai-health-executive-grid">
+                    <article class="ai-health-card">
+                        <div id="aiHealthRing" class="ai-health-ring"><div><strong id="aiHealthScore">—</strong><span>/100</span></div></div>
+                        <div><span>Índice de saúde</span><h3 id="aiHealthLabel">A analisar...</h3><p id="aiHealthExplanation">Avaliação global das faturas pendentes.</p></div>
+                    </article>
+
+                    <article class="ai-executive-card">
                     <div class="ai-executive-icon"><i data-lucide="brain-circuit"></i></div>
                     <div><span>Resumo executivo</span><h3 id="aiExecutiveTitle">A analisar os dados...</h3><p id="aiExecutiveText">Aguarde enquanto são avaliadas as faturas pendentes.</p></div>
                 </article>
+                </section>
 
-                <div class="ai-metrics-grid">
+                <div class="ai-metrics-grid ai-metrics-grid-pro">
                     <article class="ai-metric-card"><span>Valor em risco</span><strong id="aiRiskValue">—</strong><small>vencidas + contencioso</small></article>
                     <article class="ai-metric-card"><span>Concentração Top 5</span><strong id="aiTop5Concentration">—</strong><small>do valor pendente</small></article>
                     <article class="ai-metric-card"><span>Faturas +90 dias</span><strong id="aiOver90Invoices">—</strong><small id="aiOver90Value">—</small></article>
                     <article class="ai-metric-card"><span>Tendência recente</span><strong id="aiTrendValue">—</strong><small id="aiTrendLabel">face à importação anterior</small></article>
+                    <article class="ai-metric-card"><span>Dias médios de atraso</span><strong id="aiAverageDelay">—</strong><small>faturas vencidas</small></article>
+                    <article class="ai-metric-card"><span>Valor médio por cliente</span><strong id="aiAverageClientValue">—</strong><small>total pendente</small></article>
+                    <article class="ai-metric-card"><span>Próximos 30 dias</span><strong id="aiNext30Value">—</strong><small id="aiNext30Invoices">—</small></article>
+                    <article class="ai-metric-card"><span>Clientes para 80%</span><strong id="aiParetoClients">—</strong><small>concentração acumulada</small></article>
                 </div>
 
                 <div class="ai-main-grid">
@@ -859,10 +873,49 @@
                     <article class="panel ai-opportunities-card"><div class="panel-header"><div><span class="panel-eyebrow">Leitura automática</span><h3>Insights principais</h3></div><div class="panel-icon ai-icon"><i data-lucide="sparkles"></i></div></div><div id="aiInsightsList" class="ai-list"></div></article>
                 </div>
 
+                <section class="ai-pro-section">
+                    <div class="ai-pro-heading"><div><span class="panel-eyebrow">Tendências</span><h3>Evolução das últimas importações</h3></div></div>
+                    <div class="ai-trends-grid">
+                        <article class="panel ai-trend-card"><span>Valor pendente</span><strong id="aiTrendTotalSummary">—</strong><div class="ai-mini-chart"><canvas id="aiTotalTrendChart"></canvas></div><p id="aiTrendTotalInterpretation">A aguardar histórico.</p></article>
+                        <article class="panel ai-trend-card"><span>Faturas</span><strong id="aiTrendInvoicesSummary">—</strong><div class="ai-mini-chart"><canvas id="aiInvoicesTrendChart"></canvas></div><p id="aiTrendInvoicesInterpretation">A aguardar histórico.</p></article>
+                        <article class="panel ai-trend-card"><span>Clientes</span><strong id="aiTrendClientsSummary">—</strong><div class="ai-mini-chart"><canvas id="aiClientsTrendChart"></canvas></div><p id="aiTrendClientsInterpretation">A aguardar histórico.</p></article>
+                    </div>
+                </section>
+
                 <article class="panel ai-priorities-panel">
                     <div class="panel-header"><div><span class="panel-eyebrow">Prioridades</span><h3>Clientes que exigem maior atenção</h3></div><div class="panel-icon"><i data-lucide="list-ordered"></i></div></div>
-                    <div class="clients-table-wrap"><table class="clients-table ai-priorities-table"><thead><tr><th>Prioridade</th><th>Cliente</th><th>Motivo</th><th class="align-center">Faturas</th><th class="align-right">Valor relevante</th><th class="align-right">Total pendente</th></tr></thead><tbody id="aiPrioritiesBody"></tbody></table></div>
+                    <div class="clients-table-wrap"><table class="clients-table ai-priorities-table"><thead><tr><th>Score</th><th>Prioridade</th><th>Cliente</th><th>Motivo</th><th class="align-center">Faturas</th><th class="align-right">Valor relevante</th><th class="align-right">Total pendente</th></tr></thead><tbody id="aiPrioritiesBody"></tbody></table></div>
                 </article>
+
+                <div class="ai-main-grid ai-pro-two-columns">
+                    <article class="panel">
+                        <div class="panel-header"><div><span class="panel-eyebrow">Recomendações</span><h3>Próximas decisões</h3></div><div class="panel-icon"><i data-lucide="route"></i></div></div>
+                        <div id="aiRecommendationsList" class="ai-list"></div>
+                    </article>
+
+                    <article class="panel">
+                        <div class="panel-header"><div><span class="panel-eyebrow">Plano de ação</span><h3>Prioridades práticas</h3></div><div class="panel-icon"><i data-lucide="list-checks"></i></div></div>
+                        <div class="ai-action-tabs">
+                            <div><strong>Hoje</strong><div id="aiActionsToday" class="ai-action-list"></div></div>
+                            <div><strong>Esta semana</strong><div id="aiActionsWeek" class="ai-action-list"></div></div>
+                            <div><strong>Monitorizar</strong><div id="aiActionsMonitor" class="ai-action-list"></div></div>
+                        </div>
+                    </article>
+                </div>
+
+                <section class="ai-pro-section ai-simulator-section">
+                    <div class="ai-pro-heading">
+                        <div><span class="panel-eyebrow">Simulador de impacto</span><h3>Simular recebimentos</h3><p>Seleciona clientes e vê o impacto estimado.</p></div>
+                        <button id="resetAiSimulatorBtn" class="secondary-btn" type="button"><i data-lucide="rotate-ccw"></i><span>Limpar</span></button>
+                    </div>
+                    <div class="ai-simulator-grid">
+                        <div id="aiSimulatorClients" class="ai-simulator-clients"></div>
+                        <article class="ai-simulator-result">
+                            <span>Valor simulado</span><h3 id="aiSimulatorValue">0,00 €</h3><p id="aiSimulatorText">Seleciona clientes para simular.</p>
+                            <div class="ai-simulator-stats"><div><span>Redução</span><strong id="aiSimulatorReduction">0%</strong></div><div><span>Novo índice</span><strong id="aiSimulatorScore">—</strong></div><div><span>Clientes</span><strong id="aiSimulatorCount">0</strong></div></div>
+                        </article>
+                    </div>
+                </section>
 
             </section>
 
@@ -1132,7 +1185,7 @@
 </div>
 
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="app-v2-3.js?v=2.3.0"></script>
+<script src="app-v2-4.js?v=2.4.0"></script>
 
 </body>
 
