@@ -91,6 +91,7 @@ Sempre que alterar `Code.gs`, crie uma nova versão da implementação da Aplica
 - `enviarResumoSemanalVendedores`: semanal, segunda-feira às 08:00 por defeito.
 - `enviarAvisosDiariosSemNota`: diariamente às 09:00 por defeito.
 - `limparSessoesExpiradas`: diariamente.
+- `importarPendentesDoDrive`: diariamente, às 06:00 por defeito.
 
 Pode alterar antes da instalação:
 
@@ -102,7 +103,19 @@ Depois de mudar estes valores, execute `instalarTriggers`.
 
 O resumo semanal inclui a situação dos clientes do vendedor e destaca dívidas vencidas. O aviso diário inclui apenas documentos vencidos que não tenham nem status nem nota, repetindo-se até um desses campos ser preenchido.
 
-## 7. Status disponíveis
+## 7. Importação automática do Excel recebido por email
+
+1. No Google Drive, crie uma pasta chamada `InvoiceVision - Pendentes`.
+2. Abra a pasta e copie da barra de endereço apenas o ID que aparece depois de `/folders/`.
+3. Na folha `CONFIGURACAO`, coloque esse ID no valor de `PASTA_DRIVE_PENDENTES_ID`.
+4. Se quiser outra hora, altere `IMPORTACAO_AUTOMATICA_HORA` (0 a 23).
+5. No Apps Script, em **Serviços**, adicione **Google Drive API**. Se utilizar também o ficheiro `appsscript.json` fornecido, o serviço já fica declarado no projeto.
+6. Execute `instalarTriggers` novamente e aceite as permissões do Google Drive.
+7. Para testar imediatamente, coloque `Pendentes.xlsx` na pasta e execute `importarPendentesDoDrive`.
+
+A rotina aceita diretamente `.xlsx` e `.xls`, lê a folha `PENDENTES`, importa todos os ficheiros por ordem de data e, após sucesso, move-os para a subpasta `Processados`. As notas e associações existentes são preservadas. Se houver erro, os administradores recebem um email e o ficheiro fica na pasta para nova tentativa.
+
+## 8. Status disponíveis
 
 - `CONTACTAR`
 - `CONTACTADO`
@@ -113,7 +126,7 @@ O resumo semanal inclui a situação dos clientes do vendedor e destaca dívidas
 
 As notas ficam na folha `NOTAS_FATURAS`, ligadas ao `ID_FATURA`. Como o identificador é recriado a partir do cliente, tipo/número do documento e vencimento, as notas sobrevivem às importações seguintes enquanto esses dados não forem alterados.
 
-## 8. Teste recomendado
+## 9. Teste recomendado
 
 1. Entre como administrador e faça uma importação.
 2. Confirme que `PENDENTES` contém as faturas.

@@ -214,7 +214,7 @@ function criarAdministradorInicial() {
  * Reexecutável: remove apenas triggers geridos pelo InvoiceVision e recria-os.
  */
 function instalarTriggers() {
-  var nomes = ["enviarResumoSemanalVendedores", "enviarAvisosDiariosSemNota", "limparSessoesExpiradas"];
+  var nomes = ["enviarResumoSemanalVendedores", "enviarAvisosDiariosSemNota", "importarPendentesDoDrive", "limparSessoesExpiradas"];
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
     if (nomes.indexOf(trigger.getHandlerFunction()) !== -1) {
       ScriptApp.deleteTrigger(trigger);
@@ -232,14 +232,139 @@ function instalarTriggers() {
   };
   var horaSemanal = ivLimitarHora_(config.RESUMO_SEMANAL_HORA, 8);
   var horaDiaria = ivLimitarHora_(config.AVISO_DIARIO_HORA, 9);
+  var horaImportacao = ivLimitarHora_(config.IMPORTACAO_AUTOMATICA_HORA, 6);
 
   ScriptApp.newTrigger("enviarResumoSemanalVendedores")
     .timeBased().onWeekDay(dias[dia] || ScriptApp.WeekDay.MONDAY)
     .atHour(horaSemanal).create();
   ScriptApp.newTrigger("enviarAvisosDiariosSemNota")
     .timeBased().everyDays(1).atHour(horaDiaria).create();
+  ScriptApp.newTrigger("importarPendentesDoDrive")
+    .timeBased().everyDays(1).atHour(horaImportacao).create();
   ScriptApp.newTrigger("limparSessoesExpiradas")
     .timeBased().everyDays(1).atHour(3).create();
+}
+
+
+/**
+ * Procura ficheiros Excel na pasta configurada, importa-os por ordem de data
+ * e move cada ficheiro concluído para a subpasta Processados.
+ * Requer o serviço avançado Google Drive API no projeto Apps Script.
+ */
+function importarPendentesDoDrive() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return;
+  try {
+    var config = ivLerConfiguracao_();
+    var pastaId = String(config.PASTA_DRIVE_PENDENTES_ID || "").trim();
+    if (!pastaId) {
+      throw new Error("Preencha PASTA_DRIVE_PENDENTES_ID na folha CONFIGURACAO.");
+    }
+
+    var pasta = DriveApp.getFolderById(pastaId);
+    var processados = ivObterOuCriarSubpasta_(pasta, "Processados");
+    var ficheiros = pasta.getFiles();
+    var excel = [];
+    while (ficheiros.hasNext()) {
+      var ficheiro = ficheiros.next();
+      var nome = String(ficheiro.getName() || "");
+      if (/\.xlsx?$/i.test(nome)) excel.push(ficheiro);
+    }
+    excel.sort(function(a, b) {
+      return a.getLastUpdated().getTime() - b.getLastUpdated().getTime();
+    });
+    if (!excel.length) return {sucesso: true, importados: 0};
+
+    var resultados = [];
+    excel.forEach(function(ficheiro) {
+      var linhas = ivLerExcelPendentes_(ficheiro);
+      var resultado = ivImportar_({
+        nomeFicheiro: ficheiro.getName(),
+        linhas: linhas
+      });
+      ficheiro.moveTo(processados);
+      resultados.push(resultado);
+    });
+    return {sucesso: true, importados: resultados.length, resultados: resultados};
+  } catch (erro) {
+    ivNotificarAdminsErroImportacao_(erro);
+    throw erro;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
+function ivLerExcelPendentes_(ficheiro) {
+  var temporario;
+  try {
+    temporario = Drive.Files.create({
+      name: "InvoiceVision_TEMP_" + new Date().getTime(),
+      mimeType: "application/vnd.google-apps.spreadsheet"
+    }, ficheiro.getBlob(), {fields: "id"});
+    var livro = SpreadsheetApp.openById(temporario.id);
+    var folha = livro.getSheetByName("PENDENTES") || livro.getSheets()[0];
+    var valores = folha.getDataRange().getValues();
+    if (valores.length < 2) throw new Error("O Excel não contém faturas.");
+
+    var cabecalhos = valores[0].map(function(valor) {
+      return String(valor || "").trim();
+    });
+    var obrigatorios = ["Entidade", "Entidade (Nome)", "Documento", "N.º Doc.", "Data Venc.", "Valor Pendente"];
+    obrigatorios.forEach(function(cabecalho) {
+      if (cabecalhos.indexOf(cabecalho) === -1) {
+        throw new Error("Falta a coluna '" + cabecalho + "' no ficheiro " + ficheiro.getName() + ".");
+      }
+    });
+
+    return valores.slice(1).filter(function(linha) {
+      return linha.some(function(valor) { return valor !== "" && valor != null; });
+    }).map(function(linha) {
+      var origem = {};
+      cabecalhos.forEach(function(cabecalho, indice) {
+        origem[cabecalho] = linha[indice];
+      });
+      return {
+        "N.": origem["Entidade"],
+        "Nome": origem["Entidade (Nome)"],
+        "Filial": "",
+        "Documento": origem["Documento"],
+        "N.º Doc.": origem["N.º Doc."],
+        "Prt.": origem["Prt."],
+        "M.": origem["Moeda"],
+        "Câmbio": 1,
+        "Dt. Doc.": origem["Data Doc."],
+        "Dt. Venc.": origem["Data Venc."],
+        "Valor Total": origem["Valor Total"],
+        "Val. Pendente": origem["Valor Pendente"],
+        "Obs.": origem["Obs."]
+      };
+    });
+  } finally {
+    if (temporario && temporario.id) {
+      DriveApp.getFileById(temporario.id).setTrashed(true);
+    }
+  }
+}
+
+
+function ivObterOuCriarSubpasta_(pasta, nome) {
+  var existentes = pasta.getFoldersByName(nome);
+  return existentes.hasNext() ? existentes.next() : pasta.createFolder(nome);
+}
+
+
+function ivNotificarAdminsErroImportacao_(erro) {
+  ivListarUtilizadores_().filter(function(user) {
+    return user.ativo && user.perfil === "ADMIN" && user.email;
+  }).forEach(function(admin) {
+    MailApp.sendEmail({
+      to: admin.email,
+      subject: "InvoiceVision — erro na importação automática",
+      body: "A importação automática não foi concluída.\n\n" + String(erro && erro.message || erro),
+      name: "InvoiceVision AI"
+    });
+  });
 }
 
 
@@ -854,15 +979,22 @@ function ivTabelaEmail_(faturas, limite) {
 
 function ivPreencherConfiguracaoInicial_() {
   var folha = ivFolha_(IV.SHEETS.CONFIG);
-  if (folha.getLastRow() > 1) return;
-  folha.getRange(2, 1, 6, 3).setValues([
+  var definicoes = [
     ["NOVO_UTILIZADOR", "", "Utilizador cuja password será definida"],
     ["NOVA_PASSWORD", "", "Password temporária; será apagada após gerar o hash"],
     ["RESUMO_SEMANAL_DIA", "MONDAY", "MONDAY a FRIDAY"],
     ["RESUMO_SEMANAL_HORA", "8", "Hora local, 0 a 23"],
     ["AVISO_DIARIO_HORA", "9", "Hora local, 0 a 23"],
+    ["PASTA_DRIVE_PENDENTES_ID", "", "ID da pasta do Google Drive onde são colocados os ficheiros Pendentes.xlsx"],
+    ["IMPORTACAO_AUTOMATICA_HORA", "6", "Hora diária da importação automática, 0 a 23"],
     ["URL_APP", "", "URL pública da aplicação"]
-  ]);
+  ];
+  var existentes = {};
+  var valores = folha.getDataRange().getValues();
+  for (var i = 1; i < valores.length; i++) existentes[String(valores[i][0])] = true;
+  definicoes.forEach(function(linha) {
+    if (!existentes[linha[0]]) folha.appendRow(linha);
+  });
 }
 
 
@@ -941,6 +1073,9 @@ function ivEstado_(vencimento, observacoes) {
 
 function ivConverterData_(valor) {
   if (Object.prototype.toString.call(valor) === "[object Date]" && !isNaN(valor)) return valor;
+  if (typeof valor === "number" && valor > 0) {
+    return new Date(new Date(1899, 11, 30).getTime() + valor * 86400000);
+  }
   var texto = String(valor || "").trim();
   var pt = texto.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
   if (pt) return new Date(Number(pt[3]), Number(pt[2]) - 1, Number(pt[1]));
