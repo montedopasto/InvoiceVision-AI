@@ -55,6 +55,8 @@ Depois de entrar como administrador:
 
 A aplicação cria automaticamente o salt e o hash de segurança. A password original nunca fica guardada na Sheet.
 
+A primeira conta administrativa criada é a única conta reconhecida pelo servidor como `ADMIN`. Todos os utilizadores criados posteriormente têm obrigatoriamente o perfil `VENDEDOR`; mesmo que alguém altere o HTML ou escreva `ADMIN` manualmente noutra linha, o backend trata essa conta como vendedor e nunca devolve os dados globais.
+
 O administrador também pode apagar utilizadores no mesmo ecrã. A aplicação impede que apague a conta com que tem a sessão iniciada.
 
 ## 4. Associar clientes aos vendedores
