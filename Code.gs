@@ -75,7 +75,7 @@ function doPost(e) {
     }
     if (acao === "criarUtilizador") {
       ivExigirAdmin_(sessao);
-      return ivJson_(ivCriarUtilizador_(pedido));
+      return ivJson_(ivCriarUtilizador_(pedido, false));
     }
     if (acao === "apagarUtilizador") {
       ivExigirAdmin_(sessao);
@@ -204,7 +204,7 @@ function criarAdministradorInicial() {
     email: linha[3],
     perfil: "ADMIN",
     vendedorId: ""
-  });
+  }, true);
   folha.getRange(2, 3).clearContent();
   return resultado;
 }
@@ -522,7 +522,7 @@ function ivObterDados_(sessao) {
 }
 
 
-function ivCriarUtilizador_(pedido) {
+function ivCriarUtilizador_(pedido, permitirAdmin) {
   var username = ivNormalizarUsername_(pedido.utilizador);
   var nome = String(pedido.nome || "").trim();
   var email = String(pedido.email || "").trim();
@@ -537,6 +537,9 @@ function ivCriarUtilizador_(pedido) {
   if (!email || email.indexOf("@") < 1) throw new Error("Indique um email válido.");
   if (password.length < 8) throw new Error("A password deve ter pelo menos 8 caracteres.");
   if (perfil !== "ADMIN" && perfil !== "VENDEDOR") throw new Error("Perfil inválido.");
+  if (perfil === "ADMIN" && !permitirAdmin) {
+    throw ivErroCodigo_("Não é permitido criar outros administradores.", "PROIBIDO");
+  }
   if (perfil === "VENDEDOR" && !vendedorId) throw new Error("Indique o código do vendedor.");
   if (ivEncontrarUtilizador_(username)) throw new Error("Já existe um utilizador com esse nome.");
 
@@ -589,9 +592,10 @@ function ivApagarUtilizador_(sessao, username) {
 function ivListarUtilizadores_() {
   var valores = ivFolha_(IV.SHEETS.USERS).getDataRange().getValues();
   var lista = [];
+  var adminPrincipal = ivAdminPrincipalUsername_(valores);
   for (var i = 1; i < valores.length; i++) {
     if (!valores[i][0]) continue;
-    var user = ivUserDaLinha_(valores[i]);
+    var user = ivAplicarPerfilSeguro_(ivUserDaLinha_(valores[i]), adminPrincipal);
     lista.push({
       utilizador: user.utilizador,
       nome: user.nome,
@@ -876,8 +880,9 @@ function ivRankingClientes_(faturas) {
 function ivVendedoresAtivos_() {
   var valores = ivFolha_(IV.SHEETS.USERS).getDataRange().getValues();
   var lista = [];
+  var adminPrincipal = ivAdminPrincipalUsername_(valores);
   for (var i = 1; i < valores.length; i++) {
-    var user = ivUserDaLinha_(valores[i]);
+    var user = ivAplicarPerfilSeguro_(ivUserDaLinha_(valores[i]), adminPrincipal);
     if (user.ativo && user.perfil === "VENDEDOR") lista.push(user);
   }
   return lista;
@@ -887,12 +892,32 @@ function ivVendedoresAtivos_() {
 function ivEncontrarUtilizador_(username) {
   username = ivNormalizarUsername_(username);
   var valores = ivFolha_(IV.SHEETS.USERS).getDataRange().getValues();
+  var adminPrincipal = ivAdminPrincipalUsername_(valores);
   for (var i = 1; i < valores.length; i++) {
     if (ivNormalizarUsername_(valores[i][0]) === username) {
-      return ivUserDaLinha_(valores[i]);
+      return ivAplicarPerfilSeguro_(ivUserDaLinha_(valores[i]), adminPrincipal);
     }
   }
   return null;
+}
+
+
+function ivAdminPrincipalUsername_(valores) {
+  for (var i = 1; i < valores.length; i++) {
+    if (String(valores[i][3] || "").toUpperCase() === "ADMIN" &&
+        String(valores[i][7] || "SIM").toUpperCase() === "SIM") {
+      return ivNormalizarUsername_(valores[i][0]);
+    }
+  }
+  return "";
+}
+
+
+function ivAplicarPerfilSeguro_(user, adminPrincipal) {
+  if (user.perfil === "ADMIN" && user.utilizador !== adminPrincipal) {
+    user.perfil = "VENDEDOR";
+  }
+  return user;
 }
 
 
