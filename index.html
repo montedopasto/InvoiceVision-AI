@@ -13,7 +13,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="style-v2-5.css?v=2.5.0">
+<link rel="stylesheet" href="style-v2-5.css?v=2.6.2">
 
 </head>
 
@@ -69,6 +69,16 @@
                 <span>Clientes</span>
             </button>
 
+            <button class="nav-item personal-nav-item" type="button" data-page="meus-clientes">
+                <i data-lucide="contact-round"></i>
+                <span>Os Meus Clientes</span>
+            </button>
+
+            <button class="nav-item admin-users-nav" type="button" data-page="utilizadores">
+                <i data-lucide="user-cog"></i>
+                <span>Utilizadores</span>
+            </button>
+
             <button class="nav-item" type="button" data-page="historico">
                 <i data-lucide="history"></i>
                 <span>Histórico</span>
@@ -84,7 +94,7 @@
 
         <div class="sidebar-spacer"></div>
 
-        <span class="app-version-marker">v2.4 · AI Intelligence PRO</span>
+        <span class="app-version-marker">v2.6 · Área Comercial</span>
 
         <div class="sidebar-import-card">
 
@@ -112,12 +122,22 @@
 
         <div class="sidebar-footer">
 
+            <div id="currentUserBadge" class="current-user-badge" hidden>
+                <strong id="currentUserName">—</strong>
+                <span id="currentUserRole">—</span>
+            </div>
+
             <div class="status">
                 <span class="status-dot"></span>
                 <span>Online</span>
             </div>
 
-            <span class="version">v2.2</span>
+            <button id="logoutBtn" class="logout-btn" type="button" hidden>
+                <i data-lucide="log-out"></i>
+                <span>Terminar sessão</span>
+            </button>
+
+            <span class="version">v2.6</span>
 
         </div>
 
@@ -509,6 +529,132 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+            </section>
+
+            <section
+                id="page-meus-clientes"
+                class="app-page"
+                data-title="Os Meus Clientes">
+
+                <div class="page-heading clients-page-heading">
+                    <div>
+                        <span class="eyebrow">Área pessoal</span>
+                        <h2>Os Meus Clientes</h2>
+                        <p>Acompanhe as contas a receber dos seus clientes e atualize o status de cada fatura.</p>
+                    </div>
+                    <div id="myClientsIdentity" class="last-update-pill">—</div>
+                </div>
+
+                <div class="clients-kpi-grid my-clients-kpi-grid">
+                    <article class="clients-kpi-card">
+                        <span>Meus clientes</span>
+                        <strong id="myClientsTotal">—</strong>
+                    </article>
+                    <article class="clients-kpi-card">
+                        <span>Faturas pendentes</span>
+                        <strong id="myInvoicesTotal">—</strong>
+                    </article>
+                    <article class="clients-kpi-card">
+                        <span>Faturas vencidas</span>
+                        <strong id="myInvoicesOverdue">—</strong>
+                    </article>
+                    <article class="clients-kpi-card">
+                        <span>Valor pendente</span>
+                        <strong id="myOutstandingTotal">—</strong>
+                    </article>
+                </div>
+
+                <article class="panel clients-panel">
+                    <div class="clients-toolbar">
+                        <div class="invoice-status-filters">
+                            <button class="my-invoice-filter active" type="button" data-my-invoice-filter="TODAS">Todas</button>
+                            <button class="my-invoice-filter" type="button" data-my-invoice-filter="VENCIDA">Vencidas</button>
+                            <button class="my-invoice-filter" type="button" data-my-invoice-filter="SEM_NOTA">Sem status</button>
+                            <button class="my-invoice-filter" type="button" data-my-invoice-filter="DENTRO_PRAZO">Dentro do prazo</button>
+                        </div>
+                        <label class="invoice-search">
+                            <i data-lucide="search"></i>
+                            <input id="myInvoiceSearchInput" type="search" placeholder="Procurar cliente ou documento">
+                        </label>
+                    </div>
+
+                    <div class="invoices-table-wrap">
+                        <table class="invoices-table my-invoices-table">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Documento</th>
+                                    <th>Vencimento</th>
+                                    <th>Estado</th>
+                                    <th class="align-right">Valor pendente</th>
+                                    <th>Status / nota</th>
+                                </tr>
+                            </thead>
+                            <tbody id="myInvoicesTableBody">
+                                <tr><td colspan="6"><div class="table-loading-state">A carregar a sua carteira...</div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+            </section>
+
+            <section
+                id="page-utilizadores"
+                class="app-page"
+                data-title="Utilizadores">
+
+                <div class="page-heading">
+                    <div>
+                        <span class="eyebrow">Administração</span>
+                        <h2>Utilizadores</h2>
+                        <p>Crie os acessos à aplicação sem editar folhas ou campos técnicos.</p>
+                    </div>
+                </div>
+
+                <div class="users-admin-layout">
+                    <article class="panel user-form-panel">
+                        <div class="panel-header">
+                            <div><span class="panel-eyebrow">Novo acesso</span><h3>Criar utilizador</h3></div>
+                        </div>
+                        <form id="userAdminForm" class="user-admin-form">
+                            <label><span>Nome</span><input id="userAdminName" type="text" required></label>
+                            <label><span>Utilizador</span><input id="userAdminUsername" type="text" autocomplete="off" required></label>
+                            <label><span>Password</span><input id="userAdminPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+                            <label><span>Email</span><input id="userAdminEmail" type="email" required></label>
+                            <label>
+                                <span>Perfil</span>
+                                <select id="userAdminProfile">
+                                    <option value="VENDEDOR">Vendedor</option>
+                                    <option value="ADMIN">Administrador</option>
+                                </select>
+                            </label>
+                            <label id="userAdminSellerIdLabel">
+                                <span>Código do vendedor</span>
+                                <input id="userAdminSellerId" type="text" placeholder="Ex.: V001">
+                            </label>
+                            <div id="userAdminMessage" class="form-message" hidden></div>
+                            <button id="userAdminSubmit" class="primary-btn" type="submit">
+                                <i data-lucide="user-plus"></i><span>Criar utilizador</span>
+                            </button>
+                        </form>
+                    </article>
+
+                    <article class="panel users-list-panel">
+                        <div class="panel-header">
+                            <div><span class="panel-eyebrow">Acessos</span><h3>Utilizadores existentes</h3></div>
+                        </div>
+                        <div class="clients-table-wrap">
+                            <table class="clients-table">
+                                <thead><tr><th>Nome</th><th>Utilizador</th><th>Email</th><th>Perfil</th><th>Código</th><th>Estado</th><th></th></tr></thead>
+                                <tbody id="usersAdminTableBody">
+                                    <tr><td colspan="7"><div class="table-loading-state">A carregar utilizadores...</div></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
                 </div>
 
             </section>
@@ -919,8 +1065,37 @@
 
 </div>
 
+<div id="loginScreen" class="login-screen" aria-hidden="false">
+    <div class="login-card">
+        <div class="login-brand">
+            <div class="brand-mark"><i data-lucide="scan-line"></i></div>
+            <div><strong>InvoiceVision</strong><span>AI Finance</span></div>
+        </div>
+        <div>
+            <span class="eyebrow">Acesso reservado</span>
+            <h1>Iniciar sessão</h1>
+            <p>Utilize as credenciais fornecidas pelo administrador.</p>
+        </div>
+        <form id="loginForm" class="login-form">
+            <label>
+                <span>Utilizador</span>
+                <input id="loginUsername" name="username" type="text" autocomplete="username" required>
+            </label>
+            <label>
+                <span>Palavra-passe</span>
+                <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+            </label>
+            <div id="loginError" class="login-error" role="alert" hidden></div>
+            <button id="loginSubmitBtn" class="primary-btn" type="submit">
+                <i data-lucide="log-in"></i>
+                <span>Entrar</span>
+            </button>
+        </form>
+    </div>
+</div>
+
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="app-v2-5.js?v=2.5.0"></script>
+<script src="app-v2-5.js?v=2.6.0"></script>
 
 </body>
 
