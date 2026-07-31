@@ -13,6 +13,9 @@ const AI = {};
 const DATA = {
     clientes: [],
     faturas: [],
+    utilizador: null,
+    minhasFaturas: [],
+    utilizadores: [],
 
     dashboard: {
         totalClientes: 0,
@@ -218,6 +221,36 @@ const ELEMENTOS = {
     aiTotalTrendChart: document.getElementById("aiTotalTrendChart"),
     aiInvoicesTrendChart: document.getElementById("aiInvoicesTrendChart"),
     aiClientsTrendChart: document.getElementById("aiClientsTrendChart")
+    ,
+    loginScreen: document.getElementById("loginScreen"),
+    loginForm: document.getElementById("loginForm"),
+    loginUsername: document.getElementById("loginUsername"),
+    loginPassword: document.getElementById("loginPassword"),
+    loginError: document.getElementById("loginError"),
+    loginSubmitBtn: document.getElementById("loginSubmitBtn"),
+    logoutBtn: document.getElementById("logoutBtn"),
+    currentUserBadge: document.getElementById("currentUserBadge"),
+    currentUserName: document.getElementById("currentUserName"),
+    currentUserRole: document.getElementById("currentUserRole"),
+    myClientsIdentity: document.getElementById("myClientsIdentity"),
+    myClientsTotal: document.getElementById("myClientsTotal"),
+    myInvoicesTotal: document.getElementById("myInvoicesTotal"),
+    myInvoicesOverdue: document.getElementById("myInvoicesOverdue"),
+    myOutstandingTotal: document.getElementById("myOutstandingTotal"),
+    myInvoiceSearchInput: document.getElementById("myInvoiceSearchInput"),
+    myInvoiceFilters: document.querySelectorAll(".my-invoice-filter"),
+    myInvoicesTableBody: document.getElementById("myInvoicesTableBody"),
+    userAdminForm: document.getElementById("userAdminForm"),
+    userAdminName: document.getElementById("userAdminName"),
+    userAdminUsername: document.getElementById("userAdminUsername"),
+    userAdminPassword: document.getElementById("userAdminPassword"),
+    userAdminEmail: document.getElementById("userAdminEmail"),
+    userAdminProfile: document.getElementById("userAdminProfile"),
+    userAdminSellerId: document.getElementById("userAdminSellerId"),
+    userAdminSellerIdLabel: document.getElementById("userAdminSellerIdLabel"),
+    userAdminMessage: document.getElementById("userAdminMessage"),
+    userAdminSubmit: document.getElementById("userAdminSubmit"),
+    usersAdminTableBody: document.getElementById("usersAdminTableBody")
 };
 
 
@@ -254,6 +287,9 @@ let graficoAiTotal = null;
 let graficoAiFaturas = null;
 let graficoAiClientes = null;
 let clientesSimuladosAI = new Set();
+let tokenSessao = localStorage.getItem("invoicevision-session") || "";
+let filtroMinhasFaturas = "TODAS";
+let pesquisaMinhasFaturas = "";
 
 
 /*
@@ -264,8 +300,7 @@ let clientesSimuladosAI = new Set();
 
 document.addEventListener("DOMContentLoaded", function() {
     inicializarInterface();
-    verificarLigacaoApi();
-    carregarDadosAplicacao();
+    inicializarAutenticacao();
 });
 
 
@@ -486,6 +521,53 @@ function registarEventosInterface() {
             renderizarSimuladorAI(construirAnaliseAI());
         });
     }
+
+    if (ELEMENTOS.loginForm) {
+        ELEMENTOS.loginForm.addEventListener("submit", autenticarUtilizador);
+    }
+
+    if (ELEMENTOS.logoutBtn) {
+        ELEMENTOS.logoutBtn.addEventListener("click", terminarSessao);
+    }
+
+    if (ELEMENTOS.myInvoiceSearchInput) {
+        ELEMENTOS.myInvoiceSearchInput.addEventListener("input", function() {
+            pesquisaMinhasFaturas = ELEMENTOS.myInvoiceSearchInput.value
+                .trim()
+                .toLowerCase();
+            renderizarMinhasFaturas();
+        });
+    }
+
+    if (ELEMENTOS.myInvoiceFilters) {
+        ELEMENTOS.myInvoiceFilters.forEach(function(botao) {
+            botao.addEventListener("click", function() {
+                filtroMinhasFaturas = botao.dataset.myInvoiceFilter || "TODAS";
+                ELEMENTOS.myInvoiceFilters.forEach(function(item) {
+                    item.classList.toggle("active", item === botao);
+                });
+                renderizarMinhasFaturas();
+            });
+        });
+    }
+
+    if (ELEMENTOS.userAdminForm) {
+        ELEMENTOS.userAdminForm.addEventListener("submit", criarUtilizador);
+    }
+    if (ELEMENTOS.userAdminProfile) {
+        ELEMENTOS.userAdminProfile.addEventListener("change", atualizarCampoVendedor);
+    }
+
+    document.addEventListener("click", function(evento) {
+        const botao = evento.target.closest("[data-save-invoice-note]");
+        if (botao) {
+            guardarNotaFatura(botao.dataset.saveInvoiceNote);
+        }
+        const apagar = evento.target.closest("[data-delete-user]");
+        if (apagar) {
+            apagarUtilizador(apagar.dataset.deleteUser);
+        }
+    });
 
     document.addEventListener("keydown", function(evento) {
         const teclaK =
@@ -861,6 +943,123 @@ ELEMENTOS.confirmImportBtn.addEventListener(
 |--------------------------------------------------------------------------
 */
 
+async function inicializarAutenticacao() {
+    mostrarEcraLogin(!tokenSessao);
+    await verificarLigacaoApi();
+
+    if (!tokenSessao) {
+        return;
+    }
+
+    try {
+        await carregarDadosAplicacao();
+        mostrarEcraLogin(false);
+    } catch (erro) {
+        limparSessaoLocal();
+        mostrarEcraLogin(true);
+    }
+}
+
+
+async function autenticarUtilizador(evento) {
+    evento.preventDefault();
+    const utilizador = ELEMENTOS.loginUsername.value.trim();
+    const palavraPasse = ELEMENTOS.loginPassword.value;
+
+    if (!utilizador || !palavraPasse) {
+        mostrarErroLogin("Preencha o utilizador e a palavra-passe.");
+        return;
+    }
+
+    ELEMENTOS.loginSubmitBtn.disabled = true;
+    mostrarErroLogin("");
+
+    try {
+        const resposta = await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({
+                acao: "login",
+                utilizador: utilizador,
+                palavraPasse: palavraPasse
+            })
+        });
+        const dados = await resposta.json();
+
+        if (!resposta.ok || !dados.sucesso || !dados.token) {
+            throw new Error(dados.erro || "Credenciais inválidas.");
+        }
+
+        tokenSessao = dados.token;
+        localStorage.setItem("invoicevision-session", tokenSessao);
+        ELEMENTOS.loginPassword.value = "";
+        await carregarDadosAplicacao();
+        mostrarEcraLogin(false);
+    } catch (erro) {
+        mostrarErroLogin(erro.message || "Não foi possível iniciar sessão.");
+    } finally {
+        ELEMENTOS.loginSubmitBtn.disabled = false;
+    }
+}
+
+
+async function terminarSessao() {
+    const tokenAnterior = tokenSessao;
+    limparSessaoLocal();
+    mostrarEcraLogin(true);
+
+    try {
+        await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({acao: "logout", token: tokenAnterior})
+        });
+    } catch (erro) {
+        console.warn("Não foi possível fechar a sessão no servidor.", erro);
+    }
+}
+
+
+function limparSessaoLocal() {
+    tokenSessao = "";
+    DATA.utilizador = null;
+    DATA.minhasFaturas = [];
+    localStorage.removeItem("invoicevision-session");
+}
+
+
+function mostrarEcraLogin(visivel) {
+    if (!ELEMENTOS.loginScreen) {
+        return;
+    }
+    ELEMENTOS.loginScreen.classList.toggle("hidden", !visivel);
+    ELEMENTOS.loginScreen.setAttribute("aria-hidden", visivel ? "false" : "true");
+    document.body.classList.toggle("auth-locked", visivel);
+    if (visivel) {
+        window.setTimeout(function() {
+            ELEMENTOS.loginUsername.focus();
+        }, 50);
+    }
+}
+
+
+function mostrarErroLogin(mensagem) {
+    if (!ELEMENTOS.loginError) {
+        return;
+    }
+    ELEMENTOS.loginError.textContent = mensagem;
+    ELEMENTOS.loginError.hidden = !mensagem;
+}
+
+
+function urlApiAutenticada(acao) {
+    return API_URL +
+        "?acao=" + encodeURIComponent(acao) +
+        "&token=" + encodeURIComponent(tokenSessao) +
+        "&t=" + Date.now();
+}
+
+
 async function verificarLigacaoApi() {
     atualizarEstadoLigacao(
         "A ligar...",
@@ -886,8 +1085,7 @@ async function verificarLigacaoApi() {
             );
         }
 
-        const dados =
-            await resposta.json();
+        const dados = await resposta.json();
 
         if (!dados.sucesso) {
             throw new Error(
@@ -943,6 +1141,7 @@ async function confirmarImportacao() {
     try {
         const pedido = {
             acao: "importar",
+            token: tokenSessao,
             nomeFicheiro:
                 ficheiroSelecionado.name,
             linhas: linhasCsv
@@ -1026,15 +1225,12 @@ async function carregarDadosAplicacao() {
     definirDashboardEmCarregamento();
 
     try {
-        const resposta = await fetch(
-            API_URL +
-            "?acao=dados&t=" +
-            Date.now(),
-            {
-                method: "GET",
-                cache: "no-store"
-            }
-        );
+        const resposta = await fetch(API_URL, {
+            method: "POST",
+            cache: "no-store",
+            headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({acao: "dados", token: tokenSessao})
+        });
 
         if (!resposta.ok) {
             throw new Error(
@@ -1048,6 +1244,9 @@ async function carregarDadosAplicacao() {
             await resposta.json();
 
         if (!resultado.sucesso) {
+            if (resultado.codigo === "NAO_AUTORIZADO") {
+                throw new Error("A sessão terminou. Inicie sessão novamente.");
+            }
             throw new Error(
                 resultado.erro ||
                 "Não foi possível obter os dados."
@@ -1057,6 +1256,7 @@ async function carregarDadosAplicacao() {
         aplicarDadosAplicacao(
             resultado.dados || {}
         );
+        return resultado.dados || {};
 
     } catch (erro) {
         console.error(
@@ -1068,6 +1268,7 @@ async function carregarDadosAplicacao() {
             erro.message ||
             "Não foi possível carregar os dados da Google Sheet."
         );
+        throw erro;
     }
 }
 
@@ -1075,6 +1276,14 @@ async function carregarDadosAplicacao() {
 function aplicarDadosAplicacao(dados) {
     const resumo =
         dados.resumo || {};
+
+    DATA.utilizador = dados.utilizador || null;
+    DATA.minhasFaturas = Array.isArray(dados.minhasFaturas)
+        ? dados.minhasFaturas
+        : [];
+    DATA.utilizadores = Array.isArray(dados.utilizadores)
+        ? dados.utilizadores
+        : [];
 
     DATA.dashboard = {
         totalClientes:
@@ -1207,6 +1416,9 @@ function aplicarDadosAplicacao(dados) {
 
     renderizarTabelaFaturas();
     renderizarClientes();
+    configurarInterfacePorPerfil();
+    renderizarMinhasFaturas();
+    renderizarUtilizadores();
 
     try {
         renderizarHistoricoCompleto();
@@ -1218,6 +1430,46 @@ function aplicarDadosAplicacao(dados) {
         renderizarAIIntelligence();
     } catch (erroAi) {
         console.error("Erro ao renderizar AI Intelligence:", erroAi);
+    }
+}
+
+
+function configurarInterfacePorPerfil() {
+    const utilizador = DATA.utilizador || {};
+    const perfil = String(utilizador.perfil || "").toUpperCase();
+    const vendedor = perfil === "VENDEDOR";
+
+    if (ELEMENTOS.currentUserBadge) {
+        ELEMENTOS.currentUserBadge.hidden = false;
+        ELEMENTOS.currentUserName.textContent =
+            utilizador.nome || utilizador.utilizador || "Utilizador";
+        ELEMENTOS.currentUserRole.textContent =
+            vendedor ? "Vendedor" : "Administrador";
+    }
+    if (ELEMENTOS.logoutBtn) {
+        ELEMENTOS.logoutBtn.hidden = false;
+    }
+    if (ELEMENTOS.myClientsIdentity) {
+        ELEMENTOS.myClientsIdentity.textContent =
+            utilizador.nome || utilizador.utilizador || "—";
+    }
+
+    document.querySelectorAll(".nav-item").forEach(function(item) {
+        const pagina = item.dataset.page;
+        const apenasAdmin = ["dashboard", "faturas", "clientes", "historico", "ai", "utilizadores"]
+            .includes(pagina);
+        item.hidden = vendedor && apenasAdmin;
+    });
+
+    document.querySelectorAll(".sidebar-import-card").forEach(function(item) {
+        item.hidden = vendedor;
+    });
+    if (ELEMENTOS.headerImportBtn) {
+        ELEMENTOS.headerImportBtn.hidden = vendedor;
+    }
+
+    if (vendedor) {
+        navegarParaPagina("meus-clientes");
     }
 }
 
@@ -3455,6 +3707,329 @@ function fecharDetalheCliente() {
     ELEMENTOS.clientDetailModal.classList.remove("open");
     ELEMENTOS.clientDetailModal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Área pessoal do vendedor
+|--------------------------------------------------------------------------
+*/
+
+function renderizarMinhasFaturas() {
+    if (!ELEMENTOS.myInvoicesTableBody) {
+        return;
+    }
+
+    const faturas = (DATA.minhasFaturas || []).filter(function(fatura) {
+        const estado = obterEstadoFaturaFrontend(fatura);
+        if (estado === "CONTENCIOSO") {
+            return false;
+        }
+
+        const temNota = Boolean(
+            String(fatura.nota || "").trim() ||
+            String(fatura.statusCobranca || "").trim()
+        );
+        let correspondeFiltro = filtroMinhasFaturas === "TODAS";
+        if (filtroMinhasFaturas === "VENCIDA") {
+            correspondeFiltro = estado === "VENCIDA";
+        } else if (filtroMinhasFaturas === "SEM_NOTA") {
+            correspondeFiltro = estado === "VENCIDA" && !temNota;
+        } else if (filtroMinhasFaturas === "DENTRO_PRAZO") {
+            correspondeFiltro = estado === "DENTRO_PRAZO";
+        }
+
+        const texto = [
+            fatura.numeroCliente,
+            fatura.nome,
+            fatura.documento,
+            fatura.numeroDocumento
+        ].join(" ").toLowerCase();
+
+        return correspondeFiltro &&
+            (!pesquisaMinhasFaturas || texto.includes(pesquisaMinhasFaturas));
+    });
+
+    const todas = (DATA.minhasFaturas || []).filter(function(fatura) {
+        return obterEstadoFaturaFrontend(fatura) !== "CONTENCIOSO";
+    });
+    const clientes = new Set(todas.map(function(fatura) {
+        return String(fatura.numeroCliente || fatura.nome || "");
+    }));
+    const vencidas = todas.filter(function(fatura) {
+        return obterEstadoFaturaFrontend(fatura) === "VENCIDA";
+    });
+    const valor = todas.reduce(function(total, fatura) {
+        return total + Number(fatura.valorPendente || 0);
+    }, 0);
+
+    ELEMENTOS.myClientsTotal.textContent = formatarNumero(clientes.size);
+    ELEMENTOS.myInvoicesTotal.textContent = formatarNumero(todas.length);
+    ELEMENTOS.myInvoicesOverdue.textContent = formatarNumero(vencidas.length);
+    ELEMENTOS.myOutstandingTotal.textContent = formatarMoeda(valor);
+
+    if (!faturas.length) {
+        ELEMENTOS.myInvoicesTableBody.innerHTML =
+            '<tr><td colspan="6"><div class="table-loading-state">' +
+            'Não existem faturas para apresentar com estes filtros.' +
+            '</div></td></tr>';
+        return;
+    }
+
+    ELEMENTOS.myInvoicesTableBody.innerHTML = faturas.map(function(fatura) {
+        const estado = obterEstadoFaturaFrontend(fatura);
+        const documento = [fatura.documento, fatura.numeroDocumento]
+            .filter(Boolean).join(" ");
+        const id = String(fatura.idFatura || "");
+        const status = String(fatura.statusCobranca || "");
+        const atualizada = fatura.notaAtualizadaEm
+            ? '<small class="note-updated">Atualizado em ' +
+                escaparHtml(fatura.notaAtualizadaEm) + '</small>'
+            : "";
+
+        return `
+            <tr>
+                <td>
+                    <div class="invoice-client-cell">
+                        <strong>${escaparHtml(fatura.nome || "Cliente sem nome")}</strong>
+                        <span>${escaparHtml(fatura.numeroCliente || "—")}</span>
+                    </div>
+                </td>
+                <td><strong class="invoice-document">${escaparHtml(documento || "—")}</strong></td>
+                <td>${escaparHtml(fatura.dataVencimento || "—")}</td>
+                <td>
+                    <span class="invoice-status-badge ${estado.toLowerCase()}">
+                        ${escaparHtml(obterRotuloEstadoFatura(estado))}
+                    </span>
+                    <small>${escaparHtml(obterSituacaoTemporalFatura(fatura))}</small>
+                </td>
+                <td class="align-right"><strong>${formatarMoeda(fatura.valorPendente)}</strong></td>
+                <td class="invoice-note-cell">
+                    <select id="invoice-status-${escaparHtml(id)}" aria-label="Status da cobrança">
+                        <option value="">Selecionar status</option>
+                        ${["CONTACTAR", "CONTACTADO", "PROMESSA_PAGAMENTO", "EM_ANALISE", "CONTESTADA", "PAGO_AGUARDA_BAIXA"]
+                            .map(function(opcao) {
+                                return '<option value="' + opcao + '"' +
+                                    (status === opcao ? " selected" : "") + ">" +
+                                    obterRotuloStatusCobranca(opcao) + "</option>";
+                            }).join("")}
+                    </select>
+                    <textarea id="invoice-note-${escaparHtml(id)}" rows="2"
+                        placeholder="Registe o contacto ou próximo passo">${escaparHtml(fatura.nota || "")}</textarea>
+                    <div class="invoice-note-actions">
+                        ${atualizada}
+                        <button class="secondary-btn save-note-btn" type="button"
+                            data-save-invoice-note="${escaparHtml(id)}">Guardar</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join("");
+}
+
+
+function obterRotuloStatusCobranca(status) {
+    const rotulos = {
+        CONTACTAR: "Contactar",
+        CONTACTADO: "Contactado",
+        PROMESSA_PAGAMENTO: "Promessa de pagamento",
+        EM_ANALISE: "Em análise",
+        CONTESTADA: "Contestada",
+        PAGO_AGUARDA_BAIXA: "Pago, aguarda baixa"
+    };
+    return rotulos[status] || status;
+}
+
+
+async function guardarNotaFatura(idFatura) {
+    const seletor = document.getElementById("invoice-status-" + idFatura);
+    const campo = document.getElementById("invoice-note-" + idFatura);
+    const botao = document.querySelector(
+        '[data-save-invoice-note="' + CSS.escape(idFatura) + '"]'
+    );
+    if (!seletor || !campo || !botao) {
+        return;
+    }
+
+    botao.disabled = true;
+    botao.textContent = "A guardar...";
+
+    try {
+        const resposta = await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({
+                acao: "guardarNota",
+                token: tokenSessao,
+                idFatura: idFatura,
+                status: seletor.value,
+                nota: campo.value.trim()
+            })
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok || !dados.sucesso) {
+            throw new Error(dados.erro || "Não foi possível guardar.");
+        }
+
+        const fatura = DATA.minhasFaturas.find(function(item) {
+            return item.idFatura === idFatura;
+        });
+        if (fatura) {
+            fatura.statusCobranca = seletor.value;
+            fatura.nota = campo.value.trim();
+            fatura.notaAtualizadaEm = dados.atualizadaEm || "";
+        }
+        renderizarMinhasFaturas();
+    } catch (erro) {
+        window.alert(erro.message || "Não foi possível guardar a nota.");
+        botao.disabled = false;
+        botao.textContent = "Guardar";
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Administração de utilizadores
+|--------------------------------------------------------------------------
+*/
+
+function atualizarCampoVendedor() {
+    if (!ELEMENTOS.userAdminSellerIdLabel) {
+        return;
+    }
+    const vendedor = ELEMENTOS.userAdminProfile.value === "VENDEDOR";
+    ELEMENTOS.userAdminSellerIdLabel.hidden = !vendedor;
+    ELEMENTOS.userAdminSellerId.required = vendedor;
+}
+
+
+function renderizarUtilizadores() {
+    if (!ELEMENTOS.usersAdminTableBody) {
+        return;
+    }
+    if (!DATA.utilizador || DATA.utilizador.perfil !== "ADMIN") {
+        ELEMENTOS.usersAdminTableBody.innerHTML = "";
+        return;
+    }
+    if (!DATA.utilizadores.length) {
+        ELEMENTOS.usersAdminTableBody.innerHTML =
+            '<tr><td colspan="7"><div class="table-loading-state">Ainda não existem utilizadores.</div></td></tr>';
+        return;
+    }
+    ELEMENTOS.usersAdminTableBody.innerHTML = DATA.utilizadores.map(function(user) {
+        return `
+            <tr>
+                <td><strong>${escaparHtml(user.nome || "—")}</strong></td>
+                <td>${escaparHtml(user.utilizador || "—")}</td>
+                <td>${escaparHtml(user.email || "—")}</td>
+                <td><span class="user-profile-badge">${escaparHtml(user.perfil || "—")}</span></td>
+                <td>${escaparHtml(user.vendedorId || "—")}</td>
+                <td><span class="user-state ${user.ativo ? "active" : "inactive"}">${user.ativo ? "Ativo" : "Inativo"}</span></td>
+                <td class="align-right">
+                    ${user.utilizador === DATA.utilizador.utilizador ? "" : `
+                        <button class="delete-user-btn" type="button"
+                            data-delete-user="${escaparHtml(user.utilizador)}">
+                            <i data-lucide="trash-2"></i> Apagar
+                        </button>
+                    `}
+                </td>
+            </tr>
+        `;
+    }).join("");
+    if (window.lucide) {
+        window.lucide.createIcons();
+    }
+}
+
+
+async function criarUtilizador(evento) {
+    evento.preventDefault();
+    const perfil = ELEMENTOS.userAdminProfile.value;
+    const pedido = {
+        acao: "criarUtilizador",
+        token: tokenSessao,
+        nome: ELEMENTOS.userAdminName.value.trim(),
+        utilizador: ELEMENTOS.userAdminUsername.value.trim(),
+        palavraPasse: ELEMENTOS.userAdminPassword.value,
+        email: ELEMENTOS.userAdminEmail.value.trim(),
+        perfil: perfil,
+        vendedorId: perfil === "VENDEDOR"
+            ? ELEMENTOS.userAdminSellerId.value.trim()
+            : ""
+    };
+
+    ELEMENTOS.userAdminSubmit.disabled = true;
+    mostrarMensagemUtilizador("A criar utilizador...", "loading");
+    try {
+        const resposta = await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify(pedido)
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok || !dados.sucesso) {
+            throw new Error(dados.erro || "Não foi possível criar o utilizador.");
+        }
+        DATA.utilizadores.push(dados.utilizador);
+        DATA.utilizadores.sort(function(a, b) {
+            return String(a.nome).localeCompare(String(b.nome), "pt");
+        });
+        ELEMENTOS.userAdminForm.reset();
+        atualizarCampoVendedor();
+        renderizarUtilizadores();
+        mostrarMensagemUtilizador("Utilizador criado com sucesso.", "success");
+    } catch (erro) {
+        mostrarMensagemUtilizador(erro.message || "Não foi possível criar o utilizador.", "error");
+    } finally {
+        ELEMENTOS.userAdminSubmit.disabled = false;
+    }
+}
+
+
+function mostrarMensagemUtilizador(mensagem, tipo) {
+    if (!ELEMENTOS.userAdminMessage) {
+        return;
+    }
+    ELEMENTOS.userAdminMessage.hidden = !mensagem;
+    ELEMENTOS.userAdminMessage.textContent = mensagem;
+    ELEMENTOS.userAdminMessage.className = "form-message " + (tipo || "");
+}
+
+
+async function apagarUtilizador(username) {
+    const user = DATA.utilizadores.find(function(item) {
+        return item.utilizador === username;
+    });
+    if (!user) {
+        return;
+    }
+    if (!window.confirm("Apagar definitivamente o utilizador " + user.nome + "?")) {
+        return;
+    }
+    try {
+        const resposta = await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({
+                acao: "apagarUtilizador",
+                token: tokenSessao,
+                utilizador: username
+            })
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok || !dados.sucesso) {
+            throw new Error(dados.erro || "Não foi possível apagar o utilizador.");
+        }
+        DATA.utilizadores = DATA.utilizadores.filter(function(item) {
+            return item.utilizador !== username;
+        });
+        renderizarUtilizadores();
+        mostrarMensagemUtilizador("Utilizador apagado.", "success");
+    } catch (erro) {
+        mostrarMensagemUtilizador(erro.message || "Não foi possível apagar o utilizador.", "error");
+    }
 }
 
 
