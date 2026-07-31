@@ -501,10 +501,12 @@ function ivExigirAdmin_(sessao) {
 function ivObterDados_(sessao) {
   var modelo = ivCarregarModelo_();
   var admin = sessao.perfil === "ADMIN";
-  var pessoais = admin
+  var financeiro = sessao.perfil === "FINANCEIRO";
+  var acessoGlobal = admin || financeiro;
+  var pessoais = acessoGlobal
     ? modelo.faturas.filter(function(f) { return f.estado !== "CONTENCIOSO"; })
     : ivFaturasDoVendedor_(modelo, sessao).filter(function(f) { return f.estado !== "CONTENCIOSO"; });
-  var globais = admin ? modelo.faturas : pessoais;
+  var globais = acessoGlobal ? modelo.faturas : pessoais;
 
   return {
     utilizador: ivUtilizadorPublico_(sessao),
@@ -513,7 +515,7 @@ function ivObterDados_(sessao) {
     pendentes: globais,
     minhasFaturas: pessoais,
     rankingClientes: ivRankingClientes_(globais),
-    historicoEvolucao: admin ? modelo.historico : [],
+    historicoEvolucao: acessoGlobal ? modelo.historico : [],
     historicoDetalhado: [],
     ultimaImportacao: modelo.historico.length
       ? modelo.historico[modelo.historico.length - 1]
@@ -536,7 +538,9 @@ function ivCriarUtilizador_(pedido, permitirAdmin) {
   if (!nome) throw new Error("Indique o nome.");
   if (!email || email.indexOf("@") < 1) throw new Error("Indique um email válido.");
   if (password.length < 8) throw new Error("A password deve ter pelo menos 8 caracteres.");
-  if (perfil !== "ADMIN" && perfil !== "VENDEDOR") throw new Error("Perfil inválido.");
+  if (perfil !== "ADMIN" && perfil !== "VENDEDOR" && perfil !== "FINANCEIRO") {
+    throw new Error("Perfil inválido.");
+  }
   if (perfil === "ADMIN" && !permitirAdmin) {
     throw ivErroCodigo_("Não é permitido criar outros administradores.", "PROIBIDO");
   }
@@ -626,7 +630,7 @@ function ivGuardarNota_(sessao, pedido) {
   if (!fatura || fatura.estado === "CONTENCIOSO") {
     throw ivErroCodigo_("Fatura indisponível.", "PROIBIDO");
   }
-  if (sessao.perfil !== "ADMIN") {
+  if (sessao.perfil !== "ADMIN" && sessao.perfil !== "FINANCEIRO") {
     var autorizadas = ivFaturasDoVendedor_(modelo, sessao);
     if (!autorizadas.some(function(item) { return item.idFatura === id; })) {
       throw ivErroCodigo_("Não tem acesso a esta fatura.", "PROIBIDO");
