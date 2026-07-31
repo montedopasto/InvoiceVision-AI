@@ -1437,14 +1437,17 @@ function aplicarDadosAplicacao(dados) {
 function configurarInterfacePorPerfil() {
     const utilizador = DATA.utilizador || {};
     const perfil = String(utilizador.perfil || "").toUpperCase();
+    const admin = perfil === "ADMIN";
+    const financeiro = perfil === "FINANCEIRO";
     const vendedor = perfil === "VENDEDOR";
 
     if (ELEMENTOS.currentUserBadge) {
         ELEMENTOS.currentUserBadge.hidden = false;
         ELEMENTOS.currentUserName.textContent =
             utilizador.nome || utilizador.utilizador || "Utilizador";
-        ELEMENTOS.currentUserRole.textContent =
-            vendedor ? "Vendedor" : "Administrador";
+        ELEMENTOS.currentUserRole.textContent = admin
+            ? "Administrador"
+            : (financeiro ? "Financeiro" : "Vendedor");
     }
     if (ELEMENTOS.logoutBtn) {
         ELEMENTOS.logoutBtn.hidden = false;
@@ -1456,16 +1459,17 @@ function configurarInterfacePorPerfil() {
 
     document.querySelectorAll(".nav-item").forEach(function(item) {
         const pagina = item.dataset.page;
-        const apenasAdmin = ["dashboard", "faturas", "clientes", "historico", "ai", "utilizadores"]
+        const areaGlobal = ["dashboard", "faturas", "clientes", "historico", "ai"]
             .includes(pagina);
-        item.hidden = vendedor && apenasAdmin;
+        const gestaoUtilizadores = pagina === "utilizadores";
+        item.hidden = (vendedor && areaGlobal) || (gestaoUtilizadores && !admin);
     });
 
     document.querySelectorAll(".sidebar-import-card").forEach(function(item) {
-        item.hidden = vendedor;
+        item.hidden = !admin;
     });
     if (ELEMENTOS.headerImportBtn) {
-        ELEMENTOS.headerImportBtn.hidden = vendedor;
+        ELEMENTOS.headerImportBtn.hidden = !admin;
     }
 
     if (vendedor) {
