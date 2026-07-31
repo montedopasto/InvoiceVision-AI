@@ -115,6 +115,8 @@ O resumo semanal inclui a situação dos clientes do vendedor e destaca dívidas
 
 A rotina aceita diretamente `.xlsx` e `.xls`, lê a folha `PENDENTES`, importa todos os ficheiros por ordem de data e, após sucesso, move-os para a subpasta `Processados`. As notas e associações existentes são preservadas. Se houver erro, os administradores recebem um email e o ficheiro fica na pasta para nova tentativa.
 
+Em cada importação, a folha `CLIENTES_VENDEDORES` é também sincronizada automaticamente: os clientes novos são acrescentados com `VENDEDOR_ID` vazio e `ATIVO` igual a `SIM`; os nomes são atualizados e os vendedores já atribuídos nunca são substituídos.
+
 ## 8. Status disponíveis
 
 - `CONTACTAR`

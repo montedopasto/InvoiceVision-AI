@@ -687,6 +687,7 @@ function ivImportar_(pedido) {
   ivFormatarCabecalho_(folha, IV.HEADERS.INVOICES.length);
 
   var faturas = valores.map(ivLinhaFatura_);
+  ivSincronizarClientesVendedores_(faturas);
   var resumo = ivResumo_(faturas);
   var idImportacao = Utilities.formatDate(agora, IV.TZ, "yyyyMMdd-HHmmss");
   ivFolha_(IV.SHEETS.HISTORY).appendRow([
@@ -705,6 +706,44 @@ function ivImportar_(pedido) {
     totalFaturas: resumo.totalFaturas,
     valorPendente: resumo.valorPendente
   };
+}
+
+
+/**
+ * Mantém automaticamente a lista de clientes encontrada nas importações.
+ * Associações já atribuídas são preservadas; clientes novos ficam sem vendedor.
+ */
+function ivSincronizarClientesVendedores_(faturas) {
+  var folha = ivFolha_(IV.SHEETS.ASSOCIATIONS);
+  var valores = folha.getDataRange().getValues();
+  var existentes = {};
+  for (var i = 1; i < valores.length; i++) {
+    var numeroExistente = String(valores[i][0] || "").trim();
+    if (numeroExistente) existentes[numeroExistente] = i + 1;
+  }
+
+  var clientes = {};
+  faturas.forEach(function(fatura) {
+    var numero = String(fatura.numeroCliente || "").trim();
+    if (!numero) return;
+    clientes[numero] = String(fatura.nome || "").trim();
+  });
+
+  var novos = [];
+  Object.keys(clientes).sort().forEach(function(numero) {
+    var linha = existentes[numero];
+    if (linha) {
+      if (String(folha.getRange(linha, 2).getValue() || "").trim() !== clientes[numero]) {
+        folha.getRange(linha, 2).setValue(clientes[numero]);
+      }
+    } else {
+      novos.push([numero, clientes[numero], "", "SIM"]);
+    }
+  });
+
+  if (novos.length) {
+    folha.getRange(folha.getLastRow() + 1, 1, novos.length, 4).setValues(novos);
+  }
 }
 
 
