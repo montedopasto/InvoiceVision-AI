@@ -250,7 +250,17 @@ const ELEMENTOS = {
     userAdminSellerIdLabel: document.getElementById("userAdminSellerIdLabel"),
     userAdminMessage: document.getElementById("userAdminMessage"),
     userAdminSubmit: document.getElementById("userAdminSubmit"),
-    usersAdminTableBody: document.getElementById("usersAdminTableBody")
+    usersAdminTableBody: document.getElementById("usersAdminTableBody"),
+    passwordUserModal: document.getElementById("passwordUserModal"),
+    passwordUserForm: document.getElementById("passwordUserForm"),
+    passwordUserUsername: document.getElementById("passwordUserUsername"),
+    passwordUserIdentity: document.getElementById("passwordUserIdentity"),
+    passwordUserNew: document.getElementById("passwordUserNew"),
+    passwordUserConfirm: document.getElementById("passwordUserConfirm"),
+    passwordUserMessage: document.getElementById("passwordUserMessage"),
+    savePasswordUserBtn: document.getElementById("savePasswordUserBtn"),
+    closePasswordUserModalBtn: document.getElementById("closePasswordUserModalBtn"),
+    cancelPasswordUserBtn: document.getElementById("cancelPasswordUserBtn")
 };
 
 
@@ -557,6 +567,14 @@ function registarEventosInterface() {
     if (ELEMENTOS.userAdminProfile) {
         ELEMENTOS.userAdminProfile.addEventListener("change", atualizarCampoVendedor);
     }
+    if (ELEMENTOS.passwordUserForm) {
+        ELEMENTOS.passwordUserForm.addEventListener("submit", alterarPasswordUtilizador);
+        ELEMENTOS.closePasswordUserModalBtn.addEventListener("click", fecharModalPasswordUtilizador);
+        ELEMENTOS.cancelPasswordUserBtn.addEventListener("click", fecharModalPasswordUtilizador);
+        document.querySelectorAll("[data-close-password-modal='true']").forEach(function(elemento) {
+            elemento.addEventListener("click", fecharModalPasswordUtilizador);
+        });
+    }
 
     document.addEventListener("click", function(evento) {
         const botao = evento.target.closest("[data-save-invoice-note]");
@@ -566,6 +584,10 @@ function registarEventosInterface() {
         const apagar = evento.target.closest("[data-delete-user]");
         if (apagar) {
             apagarUtilizador(apagar.dataset.deleteUser);
+        }
+        const alterarPassword = evento.target.closest("[data-change-user-password]");
+        if (alterarPassword) {
+            abrirModalPasswordUtilizador(alterarPassword.dataset.changeUserPassword);
         }
     });
 
@@ -585,6 +607,7 @@ function registarEventosInterface() {
         if (evento.key === "Escape") {
             fecharCommandPalette();
             fecharModalImportacao();
+            fecharModalPasswordUtilizador();
             fecharSidebar();
         }
     });
@@ -712,7 +735,8 @@ function fecharCommandPalette() {
 function atualizarBloqueioBody() {
     const existeModalAberto =
         ELEMENTOS.importModal.classList.contains("open") ||
-        ELEMENTOS.commandPalette.classList.contains("open");
+        ELEMENTOS.commandPalette.classList.contains("open") ||
+        (ELEMENTOS.passwordUserModal && ELEMENTOS.passwordUserModal.classList.contains("open"));
 
     document.body.classList.toggle(
         "modal-open",
@@ -3933,6 +3957,10 @@ function renderizarUtilizadores() {
                 <td><span class="user-state ${user.ativo ? "active" : "inactive"}">${user.ativo ? "Ativo" : "Inativo"}</span></td>
                 <td class="align-right">
                     ${user.utilizador === DATA.utilizador.utilizador ? "" : `
+                        <button class="change-password-user-btn" type="button"
+                            data-change-user-password="${escaparHtml(user.utilizador)}">
+                            <i data-lucide="key-round"></i> Alterar password
+                        </button>
                         <button class="delete-user-btn" type="button"
                             data-delete-user="${escaparHtml(user.utilizador)}">
                             <i data-lucide="trash-2"></i> Apagar
@@ -3944,6 +3972,91 @@ function renderizarUtilizadores() {
     }).join("");
     if (window.lucide) {
         window.lucide.createIcons();
+    }
+}
+
+
+function abrirModalPasswordUtilizador(username) {
+    if (!DATA.utilizador || DATA.utilizador.perfil !== "ADMIN" || !ELEMENTOS.passwordUserModal) {
+        return;
+    }
+    const user = DATA.utilizadores.find(function(item) {
+        return item.utilizador === username;
+    });
+    if (!user || username === DATA.utilizador.utilizador) {
+        return;
+    }
+    ELEMENTOS.passwordUserForm.reset();
+    ELEMENTOS.passwordUserUsername.value = username;
+    ELEMENTOS.passwordUserIdentity.textContent =
+        (user.nome || username) + " · " + username;
+    mostrarMensagemPasswordUtilizador("", "");
+    ELEMENTOS.passwordUserModal.classList.add("open");
+    ELEMENTOS.passwordUserModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+    setTimeout(function() { ELEMENTOS.passwordUserNew.focus(); }, 50);
+}
+
+
+function fecharModalPasswordUtilizador() {
+    if (!ELEMENTOS.passwordUserModal ||
+        (ELEMENTOS.savePasswordUserBtn && ELEMENTOS.savePasswordUserBtn.disabled)) {
+        return;
+    }
+    ELEMENTOS.passwordUserModal.classList.remove("open");
+    ELEMENTOS.passwordUserModal.setAttribute("aria-hidden", "true");
+    ELEMENTOS.passwordUserForm.reset();
+    atualizarBloqueioBody();
+}
+
+
+function mostrarMensagemPasswordUtilizador(mensagem, tipo) {
+    if (!ELEMENTOS.passwordUserMessage) return;
+    ELEMENTOS.passwordUserMessage.hidden = !mensagem;
+    ELEMENTOS.passwordUserMessage.textContent = mensagem;
+    ELEMENTOS.passwordUserMessage.className = "form-message " + (tipo || "");
+}
+
+
+async function alterarPasswordUtilizador(evento) {
+    evento.preventDefault();
+    const username = ELEMENTOS.passwordUserUsername.value;
+    const novaPassword = ELEMENTOS.passwordUserNew.value;
+    const confirmar = ELEMENTOS.passwordUserConfirm.value;
+    if (novaPassword.length < 8) {
+        mostrarMensagemPasswordUtilizador("A nova password deve ter pelo menos 8 caracteres.", "error");
+        return;
+    }
+    if (novaPassword !== confirmar) {
+        mostrarMensagemPasswordUtilizador("As passwords não coincidem.", "error");
+        return;
+    }
+
+    ELEMENTOS.savePasswordUserBtn.disabled = true;
+    mostrarMensagemPasswordUtilizador("A alterar password...", "loading");
+    try {
+        const resposta = await fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({
+                acao: "alterarPasswordUtilizador",
+                token: tokenSessao,
+                utilizador: username,
+                novaPassword: novaPassword
+            })
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok || !dados.sucesso) {
+            throw new Error(dados.erro || "Não foi possível alterar a password.");
+        }
+        ELEMENTOS.passwordUserNew.value = "";
+        ELEMENTOS.passwordUserConfirm.value = "";
+        mostrarMensagemUtilizador("Password alterada com sucesso. As sessões anteriores foram terminadas.", "success");
+        ELEMENTOS.savePasswordUserBtn.disabled = false;
+        fecharModalPasswordUtilizador();
+    } catch (erro) {
+        mostrarMensagemPasswordUtilizador(erro.message || "Não foi possível alterar a password.", "error");
+        ELEMENTOS.savePasswordUserBtn.disabled = false;
     }
 }
 

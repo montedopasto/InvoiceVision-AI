@@ -13,7 +13,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="style-v2-5.css?v=2.6.2">
+<link rel="stylesheet" href="style-v2-5.css?v=2.6.4">
 
 </head>
 
@@ -1065,6 +1065,41 @@
 
 </div>
 
+<div id="passwordUserModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-password-modal="true"></div>
+    <div class="modal-dialog password-user-dialog" role="dialog" aria-modal="true" aria-labelledby="passwordUserModalTitle">
+        <div class="modal-header">
+            <div>
+                <span class="eyebrow">Administração de acessos</span>
+                <h2 id="passwordUserModalTitle">Alterar password</h2>
+                <p id="passwordUserIdentity">Defina uma nova password para este utilizador.</p>
+            </div>
+            <button id="closePasswordUserModalBtn" class="icon-btn" type="button" aria-label="Fechar">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <form id="passwordUserForm" class="modal-content password-user-form">
+            <input id="passwordUserUsername" type="hidden">
+            <label>
+                <span>Nova password</span>
+                <input id="passwordUserNew" type="password" minlength="8" autocomplete="new-password" required>
+            </label>
+            <label>
+                <span>Confirmar password</span>
+                <input id="passwordUserConfirm" type="password" minlength="8" autocomplete="new-password" required>
+            </label>
+            <p class="password-user-hint">Mínimo de 8 caracteres. A password atual nunca é apresentada nem enviada ao navegador.</p>
+            <div id="passwordUserMessage" class="form-message" hidden></div>
+            <div class="password-user-actions">
+                <button id="cancelPasswordUserBtn" class="secondary-btn" type="button">Cancelar</button>
+                <button id="savePasswordUserBtn" class="primary-btn" type="submit">
+                    <i data-lucide="key-round"></i><span>Alterar password</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div id="loginScreen" class="login-screen" aria-hidden="false">
     <div class="login-card">
         <div class="login-brand">
@@ -1095,7 +1130,7 @@
 </div>
 
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="app-v2-5.js?v=2.6.3"></script>
+<script src="app-v2-5.js?v=2.6.4"></script>
 
 </body>
 
