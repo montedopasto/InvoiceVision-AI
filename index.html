@@ -13,7 +13,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="style-v2-5.css?v=2.6.4">
+<link rel="stylesheet" href="style-v2-5.css?v=2.6.5">
 
 </head>
 
@@ -467,7 +467,7 @@
 
                         <label class="invoice-search">
                             <i data-lucide="search"></i>
-                            <input id="clientSearchInput" type="search" placeholder="Procurar cliente ou número...">
+                            <input id="clientSearchInput" type="search" placeholder="Procurar cliente, número ou vendedor...">
                         </label>
                     </div>
 
@@ -476,6 +476,7 @@
                             <thead>
                                 <tr>
                                     <th>Cliente</th>
+                                    <th>Vendedor associado</th>
                                     <th class="align-center">Faturas</th>
                                     <th class="align-right">Dentro do prazo</th>
                                     <th class="align-right">Vencidas</th>
@@ -486,7 +487,7 @@
                             </thead>
                             <tbody id="clientsTableBody">
                                 <tr>
-                                    <td colspan="7">
+                                    <td colspan="8">
                                         <div class="table-loading-state">A carregar clientes...</div>
                                     </td>
                                 </tr>
@@ -1130,7 +1131,7 @@
 </div>
 
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="app-v2-5.js?v=2.6.4"></script>
+<script src="app-v2-5.js?v=2.6.5"></script>
 
 </body>
 

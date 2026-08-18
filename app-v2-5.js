@@ -3428,6 +3428,8 @@ function construirResumoClientes() {
                 chave: chave,
                 numeroCliente: numero,
                 nome: nome,
+                vendedorId: String(fatura.vendedorId || "").trim(),
+                vendedorNome: String(fatura.vendedorNome || "Sem vendedor associado").trim(),
                 totalFaturas: 0,
                 valorPendente: 0,
                 dentroPrazo: {
@@ -3520,7 +3522,9 @@ function renderizarClientes() {
             const texto =
                 [
                     cliente.numeroCliente,
-                    cliente.nome
+                    cliente.nome,
+                    cliente.vendedorNome,
+                    cliente.vendedorId
                 ].join(" ").toLowerCase();
 
             const correspondePesquisa =
@@ -3548,7 +3552,7 @@ function renderizarClientes() {
     if (filtrados.length === 0) {
         ELEMENTOS.clientsTableBody.innerHTML = `
             <tr>
-                <td colspan="7">
+                <td colspan="8">
                     <div class="table-loading-state">
                         Não foram encontrados clientes com estes filtros.
                     </div>
@@ -3566,6 +3570,15 @@ function renderizarClientes() {
                         <div class="invoice-client-cell">
                             <strong>${escaparHtml(cliente.nome)}</strong>
                             <span>${escaparHtml(cliente.numeroCliente || "—")}</span>
+                        </div>
+                    </td>
+
+                    <td>
+                        <div class="client-seller-cell">
+                            <strong>${escaparHtml(cliente.vendedorNome || "Sem vendedor associado")}</strong>
+                            ${cliente.vendedorId
+                                ? `<span>${escaparHtml(cliente.vendedorId)}</span>`
+                                : ""}
                         </div>
                     </td>
 

@@ -2471,6 +2471,46 @@ kbd {
     font-size: 9px;
 }
 
+/* Tabela principal do menu Clientes: leitura confortável em ecrãs largos. */
+.clients-panel .clients-table {
+    min-width: 1180px;
+}
+
+.clients-panel .clients-table th {
+    font-size: 12px;
+    line-height: 1.25;
+}
+
+.clients-panel .clients-table td {
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.clients-panel .clients-table td small,
+.clients-panel .invoice-client-cell span,
+.clients-panel .client-seller-cell span {
+    font-size: 11px;
+}
+
+.client-seller-cell {
+    min-width: 150px;
+}
+
+.client-seller-cell strong,
+.client-seller-cell span {
+    display: block;
+}
+
+.client-seller-cell strong {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.client-seller-cell span {
+    margin-top: 3px;
+    color: var(--muted);
+}
+
 .align-center {
     text-align: center !important;
 }
