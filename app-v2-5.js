@@ -166,6 +166,9 @@ const ELEMENTOS = {
     clientDetailNumber:
         document.getElementById("clientDetailNumber"),
 
+    clientDetailAdminActions:
+        document.getElementById("clientDetailAdminActions"),
+
     clientDetailSummary:
         document.getElementById("clientDetailSummary"),
 
@@ -3818,6 +3821,8 @@ function abrirDetalheCliente(chave, origem) {
             ? "Cliente " + cliente.numeroCliente
             : "Sem número de cliente";
 
+    renderizarAcaoAdminContencioso(cliente, origem);
+
     ELEMENTOS.clientDetailSummary.innerHTML = `
         <article>
             <span>Total pendente</span>
@@ -3900,6 +3905,93 @@ function abrirDetalheCliente(chave, origem) {
 
     if (window.lucide) {
         window.lucide.createIcons();
+    }
+}
+
+
+function renderizarAcaoAdminContencioso(cliente, origem) {
+    const contentor = ELEMENTOS.clientDetailAdminActions;
+    const eAdmin = DATA.utilizador && DATA.utilizador.perfil === "ADMIN";
+
+    if (!contentor) return;
+    if (!eAdmin) {
+        contentor.hidden = true;
+        contentor.innerHTML = "";
+        return;
+    }
+
+    const retirar = origem === "contencioso";
+    contentor.hidden = false;
+    contentor.innerHTML = `
+        <div>
+            <strong>${retirar ? "Cliente em contencioso" : "Gestão de contencioso"}</strong>
+            <small>${retirar
+                ? "Ao retirar, o cliente volta às áreas e totais normais."
+                : "Ao marcar, o cliente passa para CONTENCIOSO e deixa as áreas normais."}</small>
+        </div>
+        <button class="${retirar ? "secondary-btn" : "primary-btn"} client-legal-action-btn" type="button">
+            ${retirar ? "Retirar do contencioso" : "Marcar como contencioso"}
+        </button>
+        <p class="client-legal-action-message" role="status" hidden></p>`;
+
+    contentor.querySelector(".client-legal-action-btn").addEventListener("click", function() {
+        definirEstadoContenciosoCliente(cliente, !retirar);
+    });
+}
+
+
+async function definirEstadoContenciosoCliente(cliente, ativo) {
+    if (!DATA.utilizador || DATA.utilizador.perfil !== "ADMIN") {
+        mostrarToast("Apenas um ADMIN pode alterar o contencioso.", "error");
+        return;
+    }
+
+    const acao = ativo ? "marcar como contencioso" : "retirar do contencioso";
+    if (!window.confirm("Confirma que pretende " + acao + " o cliente “" + cliente.nome + "”?")) return;
+
+    const contentor = ELEMENTOS.clientDetailAdminActions;
+    const botao = contentor && contentor.querySelector(".client-legal-action-btn");
+    const mensagem = contentor && contentor.querySelector(".client-legal-action-message");
+    if (botao) {
+        botao.disabled = true;
+        botao.textContent = "A guardar...";
+    }
+    if (mensagem) {
+        mensagem.hidden = false;
+        mensagem.className = "client-legal-action-message";
+        mensagem.textContent = "A atualizar o cliente...";
+    }
+
+    try {
+        const resposta = await fetch(API_URL, {
+            method: "POST",
+            cache: "no-store",
+            headers: {"Content-Type": "text/plain;charset=utf-8"},
+            body: JSON.stringify({
+                acao: "definirClienteContencioso",
+                token: tokenSessao,
+                numeroCliente: cliente.numeroCliente || "",
+                nomeCliente: cliente.nome || "",
+                ativo: ativo
+            })
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok || !dados.sucesso) {
+            throw new Error(dados.erro || "Não foi possível atualizar o cliente.");
+        }
+
+        fecharDetalheCliente();
+        await carregarDadosAplicacao();
+        mostrarToast(ativo ? "Cliente marcado como contencioso." : "Cliente retirado do contencioso.", "success");
+    } catch (erro) {
+        if (mensagem) {
+            mensagem.className = "client-legal-action-message error";
+            mensagem.textContent = erro.message || "Não foi possível atualizar o cliente.";
+        }
+        if (botao) {
+            botao.disabled = false;
+            botao.textContent = ativo ? "Marcar como contencioso" : "Retirar do contencioso";
+        }
     }
 }
 
@@ -6251,6 +6343,22 @@ function mostrarErro(mensagem) {
 
     ELEMENTOS.confirmImportBtn.disabled =
         true;
+}
+
+
+function mostrarToast(mensagem, tipo) {
+    const anterior = document.querySelector(".app-toast");
+    if (anterior) anterior.remove();
+
+    const toast = document.createElement("div");
+    toast.className = "app-toast " + (tipo || "");
+    toast.setAttribute("role", "status");
+    toast.textContent = mensagem;
+    document.body.appendChild(toast);
+
+    window.setTimeout(function() {
+        toast.remove();
+    }, 4500);
 }
 
 
