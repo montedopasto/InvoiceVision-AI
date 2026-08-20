@@ -15,6 +15,7 @@ const DATA = {
     faturas: [],
     utilizador: null,
     minhasFaturas: [],
+    contenciosoFaturas: [],
     utilizadores: [],
 
     dashboard: {
@@ -144,6 +145,14 @@ const ELEMENTOS = {
 
     clientsTableBody:
         document.getElementById("clientsTableBody"),
+
+    contenciosoTotalClientes: document.getElementById("contenciosoTotalClientes"),
+    contenciosoTotalFaturas: document.getElementById("contenciosoTotalFaturas"),
+    contenciosoFaturasVencidas: document.getElementById("contenciosoFaturasVencidas"),
+    contenciosoValorTotal: document.getElementById("contenciosoValorTotal"),
+    contenciosoSearchInput: document.getElementById("contenciosoSearchInput"),
+    contenciosoFilters: document.querySelectorAll(".contencioso-filter"),
+    contenciosoTableBody: document.getElementById("contenciosoTableBody"),
 
     clientDetailModal:
         document.getElementById("clientDetailModal"),
@@ -293,6 +302,9 @@ let filtroEstadoFaturas = "TODAS";
 let pesquisaFaturas = "";
 let filtroClientes = "TODOS";
 let pesquisaClientes = "";
+let filtroContencioso = "TODOS";
+let pesquisaContencioso = "";
+let detalheClienteAberto = null;
 let graficoAiTotal = null;
 let graficoAiFaturas = null;
 let graficoAiClientes = null;
@@ -490,6 +502,26 @@ function registarEventosInterface() {
         );
     }
 
+    if (ELEMENTOS.contenciosoFilters) {
+        ELEMENTOS.contenciosoFilters.forEach(function(botao) {
+            botao.addEventListener("click", function() {
+                filtroContencioso = botao.dataset.contenciosoFilter || "TODOS";
+                ELEMENTOS.contenciosoFilters.forEach(function(item) {
+                    item.classList.toggle("active", item === botao);
+                });
+                renderizarContencioso();
+            });
+        });
+    }
+
+    if (ELEMENTOS.contenciosoSearchInput) {
+        ELEMENTOS.contenciosoSearchInput.addEventListener("input", function() {
+            pesquisaContencioso = ELEMENTOS.contenciosoSearchInput.value
+                .trim().toLowerCase();
+            renderizarContencioso();
+        });
+    }
+
     if (ELEMENTOS.closeClientDetailBtn) {
         ELEMENTOS.closeClientDetailBtn.addEventListener(
             "click",
@@ -643,6 +675,10 @@ function navegarParaPagina(pagina) {
 
     if (pagina === "ai") {
         renderizarAIIntelligence();
+    }
+
+    if (pagina === "contencioso") {
+        renderizarContencioso();
     }
 
     ELEMENTOS.pageTitle.textContent =
@@ -1305,6 +1341,9 @@ function aplicarDadosAplicacao(dados) {
     DATA.minhasFaturas = Array.isArray(dados.minhasFaturas)
         ? dados.minhasFaturas
         : [];
+    DATA.contenciosoFaturas = Array.isArray(dados.contenciosoPendentes)
+        ? dados.contenciosoPendentes
+        : [];
     DATA.utilizadores = Array.isArray(dados.utilizadores)
         ? dados.utilizadores
         : [];
@@ -1440,6 +1479,7 @@ function aplicarDadosAplicacao(dados) {
 
     renderizarTabelaFaturas();
     renderizarClientes();
+    renderizarContencioso();
     configurarInterfacePorPerfil();
     renderizarMinhasFaturas();
     renderizarUtilizadores();
@@ -3410,10 +3450,11 @@ function renderizarTabelaFaturas() {
 }
 
 
-function construirResumoClientes() {
+function construirResumoClientes(faturasOrigem) {
     const mapa = new Map();
 
-    DATA.faturas.forEach(function(fatura) {
+    const faturas = Array.isArray(faturasOrigem) ? faturasOrigem : DATA.faturas;
+    faturas.forEach(function(fatura) {
         const numero =
             String(fatura.numeroCliente || "").trim();
 
@@ -3472,6 +3513,65 @@ function construirResumoClientes() {
         .sort(function(a, b) {
             return b.valorPendente - a.valorPendente;
         });
+}
+
+
+function renderizarContencioso() {
+    if (!ELEMENTOS.contenciosoTableBody) return;
+
+    const clientes = construirResumoClientes(DATA.contenciosoFaturas);
+    const totalFaturas = DATA.contenciosoFaturas.length;
+    const vencidas = DATA.contenciosoFaturas.filter(function(fatura) {
+        return obterEstadoFaturaFrontend(fatura) === "VENCIDA";
+    }).length;
+    const valorTotal = DATA.contenciosoFaturas.reduce(function(total, fatura) {
+        return total + Number(fatura.valorPendente || 0);
+    }, 0);
+
+    ELEMENTOS.contenciosoTotalClientes.textContent = formatarNumero(clientes.length);
+    ELEMENTOS.contenciosoTotalFaturas.textContent = formatarNumero(totalFaturas);
+    ELEMENTOS.contenciosoFaturasVencidas.textContent = formatarNumero(vencidas);
+    ELEMENTOS.contenciosoValorTotal.textContent = formatarMoeda(valorTotal);
+
+    const filtrados = clientes.filter(function(cliente) {
+        const texto = [cliente.numeroCliente, cliente.nome, cliente.vendedorNome, cliente.vendedorId]
+            .join(" ").toLowerCase();
+        let correspondeFiltro = true;
+        if (filtroContencioso === "VENCIDA") {
+            correspondeFiltro = cliente.vencidas.totalFaturas > 0;
+        } else if (filtroContencioso === "DENTRO_PRAZO") {
+            correspondeFiltro = cliente.dentroPrazo.totalFaturas > 0;
+        }
+        return correspondeFiltro && (!pesquisaContencioso || texto.includes(pesquisaContencioso));
+    });
+
+    if (!filtrados.length) {
+        ELEMENTOS.contenciosoTableBody.innerHTML =
+            '<tr><td colspan="7"><div class="table-loading-state">' +
+            'Não existem clientes de contencioso com estes filtros.</div></td></tr>';
+        return;
+    }
+
+    ELEMENTOS.contenciosoTableBody.innerHTML = filtrados.map(function(cliente) {
+        return `
+            <tr>
+                <td><div class="invoice-client-cell"><strong>${escaparHtml(cliente.nome)}</strong><span>${escaparHtml(cliente.numeroCliente || "—")}</span></div></td>
+                <td><div class="client-seller-cell"><strong>${escaparHtml(cliente.vendedorNome || "Sem vendedor associado")}</strong>${cliente.vendedorId ? `<span>${escaparHtml(cliente.vendedorId)}</span>` : ""}</div></td>
+                <td class="align-center"><strong>${formatarNumero(cliente.totalFaturas)}</strong></td>
+                <td class="align-right"><span class="client-value inside">${formatarMoeda(cliente.dentroPrazo.valorPendente)}</span><small>${formatarNumero(cliente.dentroPrazo.totalFaturas)} faturas</small></td>
+                <td class="align-right"><span class="client-value overdue">${formatarMoeda(cliente.vencidas.valorPendente)}</span><small>${formatarNumero(cliente.vencidas.totalFaturas)} faturas</small></td>
+                <td class="align-right"><strong class="client-total-value">${formatarMoeda(cliente.valorPendente)}</strong></td>
+                <td class="align-right"><button class="client-detail-btn" type="button" data-contencioso-client-key="${escaparHtml(cliente.chave)}">Ver detalhe<i data-lucide="chevron-right"></i></button></td>
+            </tr>`;
+    }).join("");
+
+    ELEMENTOS.contenciosoTableBody.querySelectorAll("[data-contencioso-client-key]")
+        .forEach(function(botao) {
+            botao.addEventListener("click", function() {
+                abrirDetalheCliente(botao.dataset.contenciosoClientKey, "contencioso");
+            });
+        });
+    if (window.lucide) window.lucide.createIcons();
 }
 
 
@@ -3640,15 +3740,17 @@ function renderizarClientes() {
 }
 
 
-function abrirDetalheCliente(chave) {
+function abrirDetalheCliente(chave, origem) {
+    origem = origem === "contencioso" ? "contencioso" : "normal";
     const cliente =
-        construirResumoClientes().find(function(item) {
+        construirResumoClientes(origem === "contencioso" ? DATA.contenciosoFaturas : DATA.faturas).find(function(item) {
             return item.chave === chave;
         });
 
     if (!cliente || !ELEMENTOS.clientDetailModal) {
         return;
     }
+    detalheClienteAberto = {chave: chave, origem: origem};
 
     ELEMENTOS.clientDetailName.textContent =
         cliente.nome;
@@ -3701,12 +3803,16 @@ function abrirDetalheCliente(chave) {
                         fatura.numeroDocumento
                     ].filter(Boolean).join(" ");
 
+                const notaContencioso = origem === "contencioso"
+                    ? renderizarEditorNotaContencioso(fatura)
+                    : "";
                 return `
                     <tr>
                         <td>
                             <strong class="invoice-document">
                                 ${escaparHtml(documento || "—")}
                             </strong>
+                            ${notaContencioso}
                         </td>
 
                         <td>${escaparHtml(fatura.dataVencimento || "—")}</td>
@@ -3748,6 +3854,24 @@ function fecharDetalheCliente() {
     ELEMENTOS.clientDetailModal.classList.remove("open");
     ELEMENTOS.clientDetailModal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
+    detalheClienteAberto = null;
+}
+
+
+function renderizarEditorNotaContencioso(fatura) {
+    const id = String(fatura.idFatura || "");
+    const status = String(fatura.statusCobranca || "");
+    return `
+        <div class="contencioso-note-editor invoice-note-cell">
+            <select id="invoice-status-${escaparHtml(id)}" aria-label="Status da cobrança">
+                <option value="">Selecionar status</option>
+                ${["CONTACTAR", "CONTACTADO", "PROMESSA_PAGAMENTO", "EM_ANALISE", "CONTESTADA", "PAGO_AGUARDA_BAIXA"].map(function(opcao) {
+                    return '<option value="' + opcao + '"' + (status === opcao ? " selected" : "") + '>' + obterRotuloStatusCobranca(opcao) + '</option>';
+                }).join("")}
+            </select>
+            <textarea id="invoice-note-${escaparHtml(id)}" rows="2" placeholder="Nota ou próximo passo">${escaparHtml(fatura.nota || "")}</textarea>
+            <button class="secondary-btn save-note-btn" type="button" data-save-invoice-note="${escaparHtml(id)}">Guardar nota</button>
+        </div>`;
 }
 
 
@@ -3921,7 +4045,19 @@ async function guardarNotaFatura(idFatura) {
             fatura.nota = campo.value.trim();
             fatura.notaAtualizadaEm = dados.atualizadaEm || "";
         }
-        renderizarMinhasFaturas();
+        const faturaContencioso = DATA.contenciosoFaturas.find(function(item) {
+            return item.idFatura === idFatura;
+        });
+        if (faturaContencioso) {
+            faturaContencioso.statusCobranca = seletor.value;
+            faturaContencioso.nota = campo.value.trim();
+            faturaContencioso.notaAtualizadaEm = dados.atualizadaEm || "";
+        }
+        if (detalheClienteAberto && detalheClienteAberto.origem === "contencioso") {
+            abrirDetalheCliente(detalheClienteAberto.chave, "contencioso");
+        } else {
+            renderizarMinhasFaturas();
+        }
     } catch (erro) {
         window.alert(erro.message || "Não foi possível guardar a nota.");
         botao.disabled = false;

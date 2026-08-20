@@ -13,7 +13,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="style-v2-5.css?v=2.6.5">
+<link rel="stylesheet" href="style-v2-5.css?v=2.6.11">
 
 </head>
 
@@ -67,6 +67,11 @@
             <button class="nav-item" type="button" data-page="clientes">
                 <i data-lucide="users"></i>
                 <span>Clientes</span>
+            </button>
+
+            <button class="nav-item contencioso-nav-item" type="button" data-page="contencioso">
+                <i data-lucide="scale"></i>
+                <span>CONTENCIOSO</span>
             </button>
 
             <button class="nav-item personal-nav-item" type="button" data-page="meus-clientes">
@@ -531,6 +536,73 @@
                         </div>
                     </div>
                 </div>
+
+            </section>
+
+            <section
+                id="page-contencioso"
+                class="app-page"
+                data-title="CONTENCIOSO">
+
+                <div class="page-heading clients-page-heading contencioso-page-heading">
+                    <div>
+                        <span class="eyebrow">Carteira reservada</span>
+                        <h2>CONTENCIOSO</h2>
+                        <p>Acompanhamento exclusivo dos clientes encaminhados para contencioso.</p>
+                    </div>
+                </div>
+
+                <div class="clients-kpi-grid">
+                    <article class="clients-kpi-card contencioso-kpi-card">
+                        <span>Clientes</span>
+                        <strong id="contenciosoTotalClientes">—</strong>
+                    </article>
+                    <article class="clients-kpi-card contencioso-kpi-card">
+                        <span>Faturas</span>
+                        <strong id="contenciosoTotalFaturas">—</strong>
+                    </article>
+                    <article class="clients-kpi-card contencioso-kpi-card">
+                        <span>Faturas vencidas</span>
+                        <strong id="contenciosoFaturasVencidas">—</strong>
+                    </article>
+                    <article class="clients-kpi-card contencioso-kpi-card">
+                        <span>Valor pendente</span>
+                        <strong id="contenciosoValorTotal">—</strong>
+                    </article>
+                </div>
+
+                <article class="panel clients-panel contencioso-panel">
+                    <div class="clients-toolbar">
+                        <div class="invoice-status-filters">
+                            <button class="contencioso-filter active" type="button" data-contencioso-filter="TODOS">Todos</button>
+                            <button class="contencioso-filter" type="button" data-contencioso-filter="VENCIDA">Com vencidas</button>
+                            <button class="contencioso-filter" type="button" data-contencioso-filter="DENTRO_PRAZO">Dentro do prazo</button>
+                        </div>
+                        <label class="invoice-search">
+                            <i data-lucide="search"></i>
+                            <input id="contenciosoSearchInput" type="search" placeholder="Procurar cliente, número ou vendedor...">
+                        </label>
+                    </div>
+
+                    <div class="clients-table-wrap">
+                        <table class="clients-table">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Vendedor associado</th>
+                                    <th class="align-center">Faturas</th>
+                                    <th class="align-right">Dentro do prazo</th>
+                                    <th class="align-right">Vencidas</th>
+                                    <th class="align-right">Valor pendente</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="contenciosoTableBody">
+                                <tr><td colspan="7"><div class="table-loading-state">A carregar contencioso...</div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
 
             </section>
 
@@ -1025,6 +1097,16 @@
             <button
                 class="command-item"
                 type="button"
+                data-command-page="contencioso">
+
+                <i data-lucide="scale"></i>
+                <span>Ir para Contencioso</span>
+
+            </button>
+
+            <button
+                class="command-item"
+                type="button"
                 data-command-page="historico">
 
                 <i data-lucide="history"></i>
@@ -1131,7 +1213,7 @@
 </div>
 
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="app-v2-5.js?v=2.6.5"></script>
+<script src="app-v2-5.js?v=2.6.11"></script>
 
 </body>
 
