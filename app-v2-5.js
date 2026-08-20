@@ -1414,18 +1414,17 @@ function aplicarDadosAplicacao(dados) {
 
         contencioso: {
             totalFaturas:
-                Number(
-                    resumo.contencioso
-                        ?.totalFaturas || 0
-                ),
+                DATA.contenciosoFaturas.length,
 
             valorPendente:
-                Number(
-                    resumo.contencioso
-                        ?.valorPendente || 0
-                )
+                DATA.contenciosoFaturas.reduce(function(total, fatura) {
+                    return total + Number(fatura.valorPendente || 0);
+                }, 0)
         }
     };
+
+    DATA.dashboard.totalContencioso =
+        DATA.dashboard.contencioso.totalFaturas;
 
     DATA.faturas =
         Array.isArray(dados.pendentes)
@@ -3739,6 +3738,13 @@ function abrirDetalheCliente(chave, origem) {
 
     if (!cliente || !ELEMENTOS.clientDetailModal) {
         return;
+    }
+
+    // O modal nasceu dentro da página Clientes. Ao abri-lo a partir da página
+    // CONTENCIOSO, esse contentor está oculto; colocá-lo no body torna-o
+    // verdadeiramente partilhado pelas duas áreas sem duplicar lógica ou ações.
+    if (ELEMENTOS.clientDetailModal.parentElement !== document.body) {
+        document.body.appendChild(ELEMENTOS.clientDetailModal);
     }
     detalheClienteAberto = {chave: chave, origem: origem};
 
