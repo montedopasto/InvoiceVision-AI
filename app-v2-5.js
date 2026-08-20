@@ -1544,32 +1544,14 @@ function configurarInterfacePorPerfil() {
 function renderizarDashboard(
     ultimaImportacao
 ) {
-    const total =
-        DATA.dashboard.valorPendente;
-
+    const distribuicao =
+        obterDistribuicaoMonetariaDashboard();
     const percentagemDentroPrazo =
-        calcularPercentagem(
-            DATA.dashboard
-                .dentroPrazo
-                .valorPendente,
-            total
-        );
-
+        distribuicao.percentagemDentroPrazo;
     const percentagemVencidas =
-        calcularPercentagem(
-            DATA.dashboard
-                .vencidas
-                .valorPendente,
-            total
-        );
-
+        distribuicao.percentagemVencidas;
     const percentagemContencioso =
-        calcularPercentagem(
-            DATA.dashboard
-                .contencioso
-                .valorPendente,
-            total
-        );
+        distribuicao.percentagemContencioso;
 
     ELEMENTOS.kpiClientes.textContent =
         formatarNumero(
@@ -3002,26 +2984,14 @@ function renderizarInsightsAutomaticos(
         return;
     }
 
-    const total =
-        resumo.valorPendente;
-
+    const distribuicao =
+        obterDistribuicaoMonetariaDashboard(resumo);
     const percentagemDentroPrazo =
-        calcularPercentagem(
-            resumo.dentroPrazo.valorPendente,
-            total
-        );
-
+        distribuicao.percentagemDentroPrazo;
     const percentagemVencidas =
-        calcularPercentagem(
-            resumo.vencidas.valorPendente,
-            total
-        );
-
+        distribuicao.percentagemVencidas;
     const percentagemContencioso =
-        calcularPercentagem(
-            resumo.contencioso.valorPendente,
-            total
-        );
+        distribuicao.percentagemContencioso;
 
     const aging =
         calcularAntiguidadeDivida(
@@ -3166,6 +3136,25 @@ function calcularPercentagem(
         Number(parcela || 0) /
         valorTotal
     ) * 100;
+}
+
+
+function obterDistribuicaoMonetariaDashboard(resumo) {
+    const origem = resumo || DATA.dashboard || {};
+    const dentroPrazo = Number(origem.dentroPrazo?.valorPendente || 0);
+    const vencidas = Number(origem.vencidas?.valorPendente || 0);
+    const contencioso = Number(origem.contencioso?.valorPendente || 0);
+    const totalCombinado = dentroPrazo + vencidas + contencioso;
+
+    return {
+        dentroPrazo: dentroPrazo,
+        vencidas: vencidas,
+        contencioso: contencioso,
+        totalCombinado: totalCombinado,
+        percentagemDentroPrazo: calcularPercentagem(dentroPrazo, totalCombinado),
+        percentagemVencidas: calcularPercentagem(vencidas, totalCombinado),
+        percentagemContencioso: calcularPercentagem(contencioso, totalCombinado)
+    };
 }
 
 
@@ -4392,14 +4381,14 @@ function renderizarTendenciaHistorico(itens) {
 
 function renderizarDistribuicaoHistorico() {
     if (!ELEMENTOS.historyStateDistribution) return;
-    const total = DATA.dashboard.valorPendente || 0;
+    const distribuicao = obterDistribuicaoMonetariaDashboard();
     const estados = [
-        {nome:'Dentro do prazo', valor:DATA.dashboard.dentroPrazo.valorPendente, classe:'inside'},
-        {nome:'Vencidas', valor:DATA.dashboard.vencidas.valorPendente, classe:'overdue'},
-        {nome:'Contencioso', valor:DATA.dashboard.contencioso.valorPendente, classe:'legal'}
+        {nome:'Dentro do prazo', valor:distribuicao.dentroPrazo, classe:'inside'},
+        {nome:'Vencidas', valor:distribuicao.vencidas, classe:'overdue'},
+        {nome:'Contencioso', valor:distribuicao.contencioso, classe:'legal'}
     ];
     ELEMENTOS.historyStateDistribution.innerHTML = estados.map(function(e) {
-        const p = calcularPercentagem(e.valor,total);
+        const p = calcularPercentagem(e.valor, distribuicao.totalCombinado);
         return `<div class="history-state-row"><div><span class="state-dot ${e.classe}"></span><strong>${e.nome}</strong><small>${formatarMoeda(e.valor)}</small></div><span>${p.toFixed(1).replace('.',',')}%</span><div class="history-state-track"><div class="${e.classe}" style="width:${p}%"></div></div></div>`;
     }).join('');
 }
@@ -4435,8 +4424,10 @@ function fecharDetalheHistorico() {
 
 function construirAnaliseAI() {
     const clientes = construirResumoClientes();
+    const distribuicao = obterDistribuicaoMonetariaDashboard();
     const total = Number(DATA.dashboard.valorPendente || 0);
-    const risco = Number(DATA.dashboard.vencidas.valorPendente || 0) + Number(DATA.dashboard.contencioso.valorPendente || 0);
+    const totalPercentual = distribuicao.totalCombinado;
+    const risco = distribuicao.vencidas + distribuicao.contencioso;
     const top5 = clientes.slice(0, 5).reduce(function(s, c) { return s + Number(c.valorPendente || 0); }, 0);
     const vencidas = DATA.faturas.filter(function(f) { return obterEstadoFaturaFrontend(f) === "VENCIDA"; });
     const faturas90 = vencidas.filter(function(f) { return Number(f.dias || 0) > 90; });
@@ -4467,9 +4458,9 @@ function construirAnaliseAI() {
     const ultimo = hist[hist.length - 1];
     const anterior = hist[hist.length - 2];
     const tendencia = ultimo && anterior ? Number(ultimo.valorPendente || 0) - Number(anterior.valorPendente || 0) : 0;
-    const percentRisco = calcularPercentagem(risco, total);
+    const percentRisco = calcularPercentagem(risco, totalPercentual);
     const concentracao = calcularPercentagem(top5, total);
-    const percentContencioso = calcularPercentagem(DATA.dashboard.contencioso.valorPendente, total);
+    const percentContencioso = calcularPercentagem(distribuicao.contencioso, totalPercentual);
     const scoreSaude = Math.max(0, Math.min(100, Math.round(
         100
         - Math.min(45, percentRisco * 0.55)
@@ -6251,13 +6242,16 @@ function escaparHtml(valor) {
    v2.5 EXECUTIVE DASHBOARD
    ========================================================== */
 function renderizarDashboardExecutive() {
-    const total = Number(DATA.dashboard.valorPendente || 0);
-    const vencido = Number(DATA.dashboard.vencidas.valorPendente || 0);
-    const contencioso = Number(DATA.dashboard.contencioso.valorPendente || 0);
+    const distribuicao = obterDistribuicaoMonetariaDashboard();
+    const totalCombinado = distribuicao.totalCombinado;
+    const vencido = distribuicao.vencidas;
+    const contencioso = distribuicao.contencioso;
     const faturas = Number(DATA.dashboard.totalFaturas || 0);
-    const faturaMedia = faturas > 0 ? total / faturas : 0;
-    const riscoPct = total > 0 ? ((vencido + contencioso) / total) * 100 : 0;
-    const legalPct = total > 0 ? (contencioso / total) * 100 : 0;
+    const faturaMedia = faturas > 0
+        ? Number(DATA.dashboard.valorPendente || 0) / faturas
+        : 0;
+    const riscoPct = calcularPercentagem(vencido + contencioso, totalCombinado);
+    const legalPct = calcularPercentagem(contencioso, totalCombinado);
     const score = Math.max(0, Math.min(100, Math.round(100 - riscoPct * .72 - legalPct * .55)));
 
     const ticketEl = document.getElementById('executiveAverageTicket');
