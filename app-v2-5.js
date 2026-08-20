@@ -1344,9 +1344,18 @@ function aplicarDadosAplicacao(dados) {
     DATA.contenciosoFaturas = Array.isArray(dados.contenciosoPendentes)
         ? dados.contenciosoPendentes
         : [];
+    DATA.faturas = Array.isArray(dados.pendentes)
+        ? dados.pendentes
+        : [];
     DATA.utilizadores = Array.isArray(dados.utilizadores)
         ? dados.utilizadores
         : [];
+
+    const decomposicao = decomporDashboardAutoritativo(
+        resumo,
+        DATA.faturas,
+        DATA.contenciosoFaturas
+    );
 
     DATA.dashboard = {
         totalClientes:
@@ -1370,66 +1379,41 @@ function aplicarDadosAplicacao(dados) {
             ),
 
         totalVencidas:
-            Number(
-                resumo.totalVencidas || 0
-            ),
+            decomposicao.vencidas.totalFaturas,
 
         totalDentroPrazo:
-            Number(
-                resumo.totalDentroPrazo || 0
-            ),
+            decomposicao.dentroPrazo.totalFaturas,
 
         totalContencioso:
-            Number(
-                resumo.totalContencioso || 0
-            ),
+            decomposicao.contencioso.totalFaturas,
 
         dentroPrazo: {
             totalFaturas:
-                Number(
-                    resumo.dentroPrazo
-                        ?.totalFaturas || 0
-                ),
+                decomposicao.dentroPrazo.totalFaturas,
 
             valorPendente:
-                Number(
-                    resumo.dentroPrazo
-                        ?.valorPendente || 0
-                )
+                decomposicao.dentroPrazo.valorPendente
         },
 
         vencidas: {
             totalFaturas:
-                Number(
-                    resumo.vencidas
-                        ?.totalFaturas || 0
-                ),
+                decomposicao.vencidas.totalFaturas,
 
             valorPendente:
-                Number(
-                    resumo.vencidas
-                        ?.valorPendente || 0
-                )
+                decomposicao.vencidas.valorPendente
         },
 
         contencioso: {
             totalFaturas:
-                DATA.contenciosoFaturas.length,
+                decomposicao.contencioso.totalFaturas,
 
             valorPendente:
-                DATA.contenciosoFaturas.reduce(function(total, fatura) {
-                    return total + Number(fatura.valorPendente || 0);
-                }, 0)
+                decomposicao.contencioso.valorPendente
         }
     };
 
     DATA.dashboard.totalContencioso =
         DATA.dashboard.contencioso.totalFaturas;
-
-    DATA.faturas =
-        Array.isArray(dados.pendentes)
-            ? dados.pendentes
-            : [];
 
     DATA.rankings = {
         clientes:
@@ -3139,21 +3123,110 @@ function calcularPercentagem(
 }
 
 
+function decomporDashboardAutoritativo(resumo, faturasNormais, faturasContencioso) {
+    const totalAutoritativo = Math.max(0, Number(resumo?.valorPendente || 0));
+    const totalFaturasAutoritativo = Math.max(0, Math.round(Number(resumo?.totalFaturas || 0)));
+    const chaveFatura = function(fatura) {
+        return String(fatura.idFatura || [
+            fatura.numeroCliente,
+            fatura.documento,
+            fatura.numeroDocumento,
+            fatura.dataVencimento
+        ].join("|"));
+    };
+    const chavesContencioso = new Set();
+    const contenciosoUnico = (Array.isArray(faturasContencioso) ? faturasContencioso : [])
+        .filter(function(fatura) {
+            const chave = chaveFatura(fatura);
+            if (chavesContencioso.has(chave)) return false;
+            chavesContencioso.add(chave);
+            return true;
+        });
+    const contencioso = contenciosoUnico
+        .reduce(function(acumulado, fatura) {
+            acumulado.valorPendente += Number(fatura.valorPendente || 0);
+            acumulado.totalFaturas += 1;
+            return acumulado;
+        }, {valorPendente: 0, totalFaturas: 0});
+
+    // Contencioso é sempre a categoria prioritária. O estado temporal dessas
+    // faturas não as volta a colocar em Vencidas ou Dentro do prazo.
+    contencioso.valorPendente = Math.min(totalAutoritativo, Math.max(0, contencioso.valorPendente));
+    contencioso.totalFaturas = Math.min(totalFaturasAutoritativo, contencioso.totalFaturas);
+
+    const chavesNormais = new Set();
+    const normaisCalculadas = (Array.isArray(faturasNormais) ? faturasNormais : [])
+        .filter(function(fatura) {
+            const chave = chaveFatura(fatura);
+            if (chavesContencioso.has(chave) || chavesNormais.has(chave)) return false;
+            chavesNormais.add(chave);
+            return true;
+        })
+        .reduce(function(acumulado, fatura) {
+            const valor = Math.max(0, Number(fatura.valorPendente || 0));
+            if (obterEstadoFaturaFrontend(fatura) === "VENCIDA") {
+                acumulado.vencidas.valorPendente += valor;
+                acumulado.vencidas.totalFaturas += 1;
+            } else {
+                acumulado.dentroPrazo.valorPendente += valor;
+                acumulado.dentroPrazo.totalFaturas += 1;
+            }
+            return acumulado;
+        }, {
+            vencidas: {valorPendente: 0, totalFaturas: 0},
+            dentroPrazo: {valorPendente: 0, totalFaturas: 0}
+        });
+
+    const alvoNormal = Math.max(0, totalAutoritativo - contencioso.valorPendente);
+    const alvoFaturasNormais = Math.max(0, totalFaturasAutoritativo - contencioso.totalFaturas);
+    const valorNormalCalculado = normaisCalculadas.vencidas.valorPendente +
+        normaisCalculadas.dentroPrazo.valorPendente;
+    const faturasNormaisCalculadas = normaisCalculadas.vencidas.totalFaturas +
+        normaisCalculadas.dentroPrazo.totalFaturas;
+
+    const proporcaoVencida = valorNormalCalculado > 0
+        ? normaisCalculadas.vencidas.valorPendente / valorNormalCalculado
+        : 0;
+    const proporcaoFaturasVencidas = faturasNormaisCalculadas > 0
+        ? normaisCalculadas.vencidas.totalFaturas / faturasNormaisCalculadas
+        : 0;
+    const valorVencidas = alvoNormal * proporcaoVencida;
+    const faturasVencidas = Math.min(
+        alvoFaturasNormais,
+        Math.max(0, Math.round(alvoFaturasNormais * proporcaoFaturasVencidas))
+    );
+
+    return {
+        totalAutoritativo: totalAutoritativo,
+        totalFaturasAutoritativo: totalFaturasAutoritativo,
+        vencidas: {
+            valorPendente: valorVencidas,
+            totalFaturas: faturasVencidas
+        },
+        dentroPrazo: {
+            valorPendente: alvoNormal - valorVencidas,
+            totalFaturas: alvoFaturasNormais - faturasVencidas
+        },
+        contencioso: contencioso
+    };
+}
+
+
 function obterDistribuicaoMonetariaDashboard(resumo) {
     const origem = resumo || DATA.dashboard || {};
     const dentroPrazo = Number(origem.dentroPrazo?.valorPendente || 0);
     const vencidas = Number(origem.vencidas?.valorPendente || 0);
     const contencioso = Number(origem.contencioso?.valorPendente || 0);
-    const totalCombinado = dentroPrazo + vencidas + contencioso;
+    const totalAutoritativo = Math.max(0, Number(origem.valorPendente || 0));
 
     return {
         dentroPrazo: dentroPrazo,
         vencidas: vencidas,
         contencioso: contencioso,
-        totalCombinado: totalCombinado,
-        percentagemDentroPrazo: calcularPercentagem(dentroPrazo, totalCombinado),
-        percentagemVencidas: calcularPercentagem(vencidas, totalCombinado),
-        percentagemContencioso: calcularPercentagem(contencioso, totalCombinado)
+        totalAutoritativo: totalAutoritativo,
+        percentagemDentroPrazo: calcularPercentagem(dentroPrazo, totalAutoritativo),
+        percentagemVencidas: calcularPercentagem(vencidas, totalAutoritativo),
+        percentagemContencioso: calcularPercentagem(contencioso, totalAutoritativo)
     };
 }
 
@@ -4388,7 +4461,7 @@ function renderizarDistribuicaoHistorico() {
         {nome:'Contencioso', valor:distribuicao.contencioso, classe:'legal'}
     ];
     ELEMENTOS.historyStateDistribution.innerHTML = estados.map(function(e) {
-        const p = calcularPercentagem(e.valor, distribuicao.totalCombinado);
+        const p = calcularPercentagem(e.valor, distribuicao.totalAutoritativo);
         return `<div class="history-state-row"><div><span class="state-dot ${e.classe}"></span><strong>${e.nome}</strong><small>${formatarMoeda(e.valor)}</small></div><span>${p.toFixed(1).replace('.',',')}%</span><div class="history-state-track"><div class="${e.classe}" style="width:${p}%"></div></div></div>`;
     }).join('');
 }
@@ -4426,7 +4499,7 @@ function construirAnaliseAI() {
     const clientes = construirResumoClientes();
     const distribuicao = obterDistribuicaoMonetariaDashboard();
     const total = Number(DATA.dashboard.valorPendente || 0);
-    const totalPercentual = distribuicao.totalCombinado;
+    const totalPercentual = distribuicao.totalAutoritativo;
     const risco = distribuicao.vencidas + distribuicao.contencioso;
     const top5 = clientes.slice(0, 5).reduce(function(s, c) { return s + Number(c.valorPendente || 0); }, 0);
     const vencidas = DATA.faturas.filter(function(f) { return obterEstadoFaturaFrontend(f) === "VENCIDA"; });
@@ -6243,15 +6316,15 @@ function escaparHtml(valor) {
    ========================================================== */
 function renderizarDashboardExecutive() {
     const distribuicao = obterDistribuicaoMonetariaDashboard();
-    const totalCombinado = distribuicao.totalCombinado;
+    const totalAutoritativo = distribuicao.totalAutoritativo;
     const vencido = distribuicao.vencidas;
     const contencioso = distribuicao.contencioso;
     const faturas = Number(DATA.dashboard.totalFaturas || 0);
     const faturaMedia = faturas > 0
         ? Number(DATA.dashboard.valorPendente || 0) / faturas
         : 0;
-    const riscoPct = calcularPercentagem(vencido + contencioso, totalCombinado);
-    const legalPct = calcularPercentagem(contencioso, totalCombinado);
+    const riscoPct = calcularPercentagem(vencido + contencioso, totalAutoritativo);
+    const legalPct = calcularPercentagem(contencioso, totalAutoritativo);
     const score = Math.max(0, Math.min(100, Math.round(100 - riscoPct * .72 - legalPct * .55)));
 
     const ticketEl = document.getElementById('executiveAverageTicket');
