@@ -2410,7 +2410,8 @@ kbd {
     border-bottom: 1px solid var(--border);
 }
 
-.client-filter {
+.client-filter,
+.contencioso-filter {
     padding: 9px 13px;
     border: 1px solid var(--border);
     border-radius: 999px;
@@ -2423,10 +2424,67 @@ kbd {
 }
 
 .client-filter:hover,
-.client-filter.active {
+.client-filter.active,
+.contencioso-filter:hover,
+.contencioso-filter.active {
     border-color: var(--primary);
     background: var(--primary-soft);
     color: var(--primary-dark);
+}
+
+.contencioso-filter:hover,
+.contencioso-filter.active {
+    border-color: #b54708;
+    background: #fff4e8;
+    color: #8a3508;
+}
+
+.contencioso-nav-item.active {
+    border-color: rgba(245, 158, 11, 0.38);
+    background: rgba(180, 83, 9, 0.18);
+}
+
+.contencioso-page-heading .eyebrow,
+.contencioso-kpi-card span {
+    color: #9a3412;
+}
+
+.contencioso-kpi-card {
+    border-top: 3px solid #d97706;
+}
+
+.contencioso-panel .clients-table {
+    min-width: 1050px;
+}
+
+.contencioso-note-editor {
+    display: grid;
+    gap: 7px;
+    min-width: 250px;
+    margin-top: 10px;
+}
+
+.contencioso-note-editor select,
+.contencioso-note-editor textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    padding: 8px 10px;
+}
+
+.contencioso-note-editor textarea {
+    min-height: 58px;
+    resize: vertical;
+}
+
+.contencioso-note-editor .save-note-btn {
+    justify-self: start;
+    padding: 7px 11px;
+    font-size: 11px;
 }
 
 .clients-table-wrap {
