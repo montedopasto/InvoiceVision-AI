@@ -3037,9 +3037,17 @@ body.modal-open {
     font-size: .8rem;
 }
 
-.my-invoices-table th:last-child {
-    min-width: 320px;
+.my-clients-table {
+    min-width: 1050px !important;
 }
+
+.clients-panel .my-clients-table th:nth-child(1) { width: 26%; }
+.clients-panel .my-clients-table th:nth-child(2) { width: 8%; }
+.clients-panel .my-clients-table th:nth-child(3),
+.clients-panel .my-clients-table th:nth-child(4) { width: 15%; }
+.clients-panel .my-clients-table th:nth-child(5) { width: 10%; }
+.clients-panel .my-clients-table th:nth-child(6) { width: 16%; }
+.clients-panel .my-clients-table th:nth-child(7) { width: 10%; }
 
 .invoice-note-cell {
     min-width: 320px;
