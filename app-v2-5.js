@@ -3795,9 +3795,14 @@ function renderizarClientes() {
 
 
 function abrirDetalheCliente(chave, origem) {
-    origem = origem === "contencioso" ? "contencioso" : "normal";
+    origem = origem === "contencioso"
+        ? "contencioso"
+        : (origem === "meus" ? "meus" : "normal");
+    const faturasOrigem = origem === "contencioso"
+        ? DATA.contenciosoFaturas
+        : (origem === "meus" ? DATA.minhasFaturas : DATA.faturas);
     const cliente =
-        construirResumoClientes(origem === "contencioso" ? DATA.contenciosoFaturas : DATA.faturas).find(function(item) {
+        construirResumoClientes(faturasOrigem).find(function(item) {
             return item.chave === chave;
         });
 
@@ -3866,7 +3871,7 @@ function abrirDetalheCliente(chave, origem) {
                         fatura.numeroDocumento
                     ].filter(Boolean).join(" ");
 
-                const notaContencioso = origem === "contencioso"
+                const notaContencioso = origem === "contencioso" || origem === "meus"
                     ? renderizarEditorNotaContencioso(fatura)
                     : "";
                 return `
@@ -4036,42 +4041,17 @@ function renderizarMinhasFaturas() {
         return;
     }
 
-    const faturas = (DATA.minhasFaturas || []).filter(function(fatura) {
-        const estado = obterEstadoFaturaFrontend(fatura);
-        if (estado === "CONTENCIOSO") {
-            return false;
-        }
-
-        const temNota = Boolean(
-            String(fatura.nota || "").trim() ||
-            String(fatura.statusCobranca || "").trim()
-        );
-        let correspondeFiltro = filtroMinhasFaturas === "TODAS";
-        if (filtroMinhasFaturas === "VENCIDA") {
-            correspondeFiltro = estado === "VENCIDA";
-        } else if (filtroMinhasFaturas === "SEM_NOTA") {
-            correspondeFiltro = estado === "VENCIDA" && !temNota;
-        } else if (filtroMinhasFaturas === "DENTRO_PRAZO") {
-            correspondeFiltro = estado === "DENTRO_PRAZO";
-        }
-
-        const texto = [
-            fatura.numeroCliente,
-            fatura.nome,
-            fatura.documento,
-            fatura.numeroDocumento
-        ].join(" ").toLowerCase();
-
-        return correspondeFiltro &&
-            (!pesquisaMinhasFaturas || texto.includes(pesquisaMinhasFaturas));
-    });
-
     const todas = (DATA.minhasFaturas || []).filter(function(fatura) {
         return obterEstadoFaturaFrontend(fatura) !== "CONTENCIOSO";
     });
-    const clientes = new Set(todas.map(function(fatura) {
-        return String(fatura.numeroCliente || fatura.nome || "");
-    }));
+    const clientes = construirResumoClientes(todas).map(function(cliente) {
+        cliente.semStatus = cliente.faturas.filter(function(fatura) {
+            return obterEstadoFaturaFrontend(fatura) === "VENCIDA" &&
+                !String(fatura.nota || "").trim() &&
+                !String(fatura.statusCobranca || "").trim();
+        }).length;
+        return cliente;
+    });
     const vencidas = todas.filter(function(fatura) {
         return obterEstadoFaturaFrontend(fatura) === "VENCIDA";
     });
@@ -4079,68 +4059,72 @@ function renderizarMinhasFaturas() {
         return total + Number(fatura.valorPendente || 0);
     }, 0);
 
-    ELEMENTOS.myClientsTotal.textContent = formatarNumero(clientes.size);
+    ELEMENTOS.myClientsTotal.textContent = formatarNumero(clientes.length);
     ELEMENTOS.myInvoicesTotal.textContent = formatarNumero(todas.length);
     ELEMENTOS.myInvoicesOverdue.textContent = formatarNumero(vencidas.length);
     ELEMENTOS.myOutstandingTotal.textContent = formatarMoeda(valor);
 
-    if (!faturas.length) {
+    const clientesFiltrados = clientes.filter(function(cliente) {
+        let correspondeFiltro = filtroMinhasFaturas === "TODAS";
+        if (filtroMinhasFaturas === "VENCIDA") {
+            correspondeFiltro = cliente.vencidas.totalFaturas > 0;
+        } else if (filtroMinhasFaturas === "SEM_NOTA") {
+            correspondeFiltro = cliente.semStatus > 0;
+        } else if (filtroMinhasFaturas === "DENTRO_PRAZO") {
+            correspondeFiltro = cliente.dentroPrazo.totalFaturas > 0;
+        }
+
+        const texto = [cliente.numeroCliente, cliente.nome]
+            .join(" ").toLowerCase();
+        return correspondeFiltro &&
+            (!pesquisaMinhasFaturas || texto.includes(pesquisaMinhasFaturas));
+    });
+
+    if (!clientesFiltrados.length) {
         ELEMENTOS.myInvoicesTableBody.innerHTML =
-            '<tr><td colspan="6"><div class="table-loading-state">' +
-            'Não existem faturas para apresentar com estes filtros.' +
+            '<tr><td colspan="7"><div class="table-loading-state">' +
+            'Não existem clientes para apresentar com estes filtros.' +
             '</div></td></tr>';
         return;
     }
 
-    ELEMENTOS.myInvoicesTableBody.innerHTML = faturas.map(function(fatura) {
-        const estado = obterEstadoFaturaFrontend(fatura);
-        const documento = [fatura.documento, fatura.numeroDocumento]
-            .filter(Boolean).join(" ");
-        const id = String(fatura.idFatura || "");
-        const status = String(fatura.statusCobranca || "");
-        const atualizada = fatura.notaAtualizadaEm
-            ? '<small class="note-updated">Atualizado em ' +
-                escaparHtml(fatura.notaAtualizadaEm) + '</small>'
-            : "";
-
+    ELEMENTOS.myInvoicesTableBody.innerHTML = clientesFiltrados.map(function(cliente) {
         return `
             <tr>
                 <td>
                     <div class="invoice-client-cell">
-                        <strong>${escaparHtml(fatura.nome || "Cliente sem nome")}</strong>
-                        <span>${escaparHtml(fatura.numeroCliente || "—")}</span>
+                        <strong>${escaparHtml(cliente.nome || "Cliente sem nome")}</strong>
+                        <span>${escaparHtml(cliente.numeroCliente || "—")}</span>
                     </div>
                 </td>
-                <td><strong class="invoice-document">${escaparHtml(documento || "—")}</strong></td>
-                <td>${escaparHtml(fatura.dataVencimento || "—")}</td>
-                <td>
-                    <span class="invoice-status-badge ${estado.toLowerCase()}">
-                        ${escaparHtml(obterRotuloEstadoFatura(estado))}
-                    </span>
-                    <small>${escaparHtml(obterSituacaoTemporalFatura(fatura))}</small>
+                <td class="align-center"><strong>${formatarNumero(cliente.totalFaturas)}</strong></td>
+                <td class="align-right client-money-cell inside">
+                    <strong>${formatarMoeda(cliente.dentroPrazo.valorPendente)}</strong>
+                    <small>${formatarNumero(cliente.dentroPrazo.totalFaturas)} faturas</small>
                 </td>
-                <td class="align-right"><strong>${formatarMoeda(fatura.valorPendente)}</strong></td>
-                <td class="invoice-note-cell">
-                    <select id="invoice-status-${escaparHtml(id)}" aria-label="Status da cobrança">
-                        <option value="">Selecionar status</option>
-                        ${["CONTACTAR", "CONTACTADO", "PROMESSA_PAGAMENTO", "EM_ANALISE", "CONTESTADA", "PAGO_AGUARDA_BAIXA"]
-                            .map(function(opcao) {
-                                return '<option value="' + opcao + '"' +
-                                    (status === opcao ? " selected" : "") + ">" +
-                                    obterRotuloStatusCobranca(opcao) + "</option>";
-                            }).join("")}
-                    </select>
-                    <textarea id="invoice-note-${escaparHtml(id)}" rows="2"
-                        placeholder="Registe o contacto ou próximo passo">${escaparHtml(fatura.nota || "")}</textarea>
-                    <div class="invoice-note-actions">
-                        ${atualizada}
-                        <button class="secondary-btn save-note-btn" type="button"
-                            data-save-invoice-note="${escaparHtml(id)}">Guardar</button>
-                    </div>
+                <td class="align-right client-money-cell overdue">
+                    <strong>${formatarMoeda(cliente.vencidas.valorPendente)}</strong>
+                    <small>${formatarNumero(cliente.vencidas.totalFaturas)} faturas</small>
+                </td>
+                <td class="align-right"><strong>${formatarNumero(cliente.semStatus)}</strong></td>
+                <td class="align-right client-total-cell"><strong>${formatarMoeda(cliente.valorPendente)}</strong></td>
+                <td class="align-right">
+                    <button class="client-detail-btn" type="button" data-my-client-key="${escaparHtml(cliente.chave)}">
+                        Ver detalhe <i data-lucide="chevron-right"></i>
+                    </button>
                 </td>
             </tr>
         `;
     }).join("");
+
+    ELEMENTOS.myInvoicesTableBody.querySelectorAll("[data-my-client-key]")
+        .forEach(function(botao) {
+            botao.addEventListener("click", function() {
+                abrirDetalheCliente(botao.dataset.myClientKey, "meus");
+            });
+        });
+
+    if (window.lucide) window.lucide.createIcons();
 }
 
 
@@ -4203,8 +4187,9 @@ async function guardarNotaFatura(idFatura) {
             faturaContencioso.nota = campo.value.trim();
             faturaContencioso.notaAtualizadaEm = dados.atualizadaEm || "";
         }
-        if (detalheClienteAberto && detalheClienteAberto.origem === "contencioso") {
-            abrirDetalheCliente(detalheClienteAberto.chave, "contencioso");
+        if (detalheClienteAberto &&
+            (detalheClienteAberto.origem === "contencioso" || detalheClienteAberto.origem === "meus")) {
+            abrirDetalheCliente(detalheClienteAberto.chave, detalheClienteAberto.origem);
         } else {
             renderizarMinhasFaturas();
         }

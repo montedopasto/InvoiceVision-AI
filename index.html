@@ -13,7 +13,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="style-v2-5.css?v=2.6.16">
+<link rel="stylesheet" href="style-v2-5.css?v=2.6.17">
 
 </head>
 
@@ -615,7 +615,7 @@
                     <div>
                         <span class="eyebrow">Área pessoal</span>
                         <h2>Os Meus Clientes</h2>
-                        <p>Acompanhe as contas a receber dos seus clientes e atualize o status de cada fatura.</p>
+                        <p>Acompanhe a posição de cada cliente e abra o detalhe para gerir as respetivas faturas.</p>
                     </div>
                     <div id="myClientsIdentity" class="last-update-pill">—</div>
                 </div>
@@ -642,31 +642,32 @@
                 <article class="panel clients-panel">
                     <div class="clients-toolbar">
                         <div class="invoice-status-filters">
-                            <button class="my-invoice-filter active" type="button" data-my-invoice-filter="TODAS">Todas</button>
+                            <button class="my-invoice-filter active" type="button" data-my-invoice-filter="TODAS">Todos</button>
                             <button class="my-invoice-filter" type="button" data-my-invoice-filter="VENCIDA">Vencidas</button>
                             <button class="my-invoice-filter" type="button" data-my-invoice-filter="SEM_NOTA">Sem status</button>
                             <button class="my-invoice-filter" type="button" data-my-invoice-filter="DENTRO_PRAZO">Dentro do prazo</button>
                         </div>
                         <label class="invoice-search">
                             <i data-lucide="search"></i>
-                            <input id="myInvoiceSearchInput" type="search" placeholder="Procurar cliente ou documento">
+                            <input id="myInvoiceSearchInput" type="search" placeholder="Procurar cliente ou número">
                         </label>
                     </div>
 
-                    <div class="invoices-table-wrap">
-                        <table class="invoices-table my-invoices-table">
+                    <div class="clients-table-wrap">
+                        <table class="clients-table my-clients-table">
                             <thead>
                                 <tr>
                                     <th>Cliente</th>
-                                    <th>Documento</th>
-                                    <th>Vencimento</th>
-                                    <th>Estado</th>
-                                    <th class="align-right">Valor pendente</th>
-                                    <th>Status / nota</th>
+                                    <th class="align-center">Faturas</th>
+                                    <th class="align-right">Dentro do prazo</th>
+                                    <th class="align-right">Vencidas</th>
+                                    <th class="align-right">Sem status</th>
+                                    <th class="align-right">Total pendente</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody id="myInvoicesTableBody">
-                                <tr><td colspan="6"><div class="table-loading-state">A carregar a sua carteira...</div></td></tr>
+                                <tr><td colspan="7"><div class="table-loading-state">A carregar a sua carteira...</div></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1213,7 +1214,7 @@
 </div>
 
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="app-v2-5.js?v=2.6.16"></script>
+<script src="app-v2-5.js?v=2.6.17"></script>
 
 </body>
 
