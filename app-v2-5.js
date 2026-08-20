@@ -3636,9 +3636,6 @@ function renderizarClientes() {
             if (filtroClientes === "VENCIDA") {
                 correspondeFiltro =
                     cliente.vencidas.totalFaturas > 0;
-            } else if (filtroClientes === "CONTENCIOSO") {
-                correspondeFiltro =
-                    cliente.contencioso.totalFaturas > 0;
             } else if (filtroClientes === "DENTRO_PRAZO") {
                 correspondeFiltro =
                     cliente.dentroPrazo.totalFaturas > 0 &&
@@ -3652,7 +3649,7 @@ function renderizarClientes() {
     if (filtrados.length === 0) {
         ELEMENTOS.clientsTableBody.innerHTML = `
             <tr>
-                <td colspan="8">
+                <td colspan="7">
                     <div class="table-loading-state">
                         Não foram encontrados clientes com estes filtros.
                     </div>
@@ -3698,13 +3695,6 @@ function renderizarClientes() {
                             ${formatarMoeda(cliente.vencidas.valorPendente)}
                         </span>
                         <small>${formatarNumero(cliente.vencidas.totalFaturas)} faturas</small>
-                    </td>
-
-                    <td class="align-right">
-                        <span class="client-value legal">
-                            ${formatarMoeda(cliente.contencioso.valorPendente)}
-                        </span>
-                        <small>${formatarNumero(cliente.contencioso.totalFaturas)} faturas</small>
                     </td>
 
                     <td class="align-right">
