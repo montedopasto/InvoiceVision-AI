@@ -325,6 +325,65 @@ let tokenSessao = localStorage.getItem("invoicevision-session") || "";
 let filtroMinhasFaturas = "TODAS";
 let pesquisaMinhasFaturas = "";
 
+const CONFIGURACAO_TABELAS = {
+    faturas: {
+        seletor: "#page-faturas .invoices-table",
+        renderizar: function() { renderizarTabelaFaturas(); },
+        campos: [
+            {campo: "cliente", tipo: "texto", placeholder: "Filtrar cliente"},
+            {campo: "documento", tipo: "texto", placeholder: "Filtrar documento"},
+            {campo: "vencimento", tipo: "data", placeholder: "Filtrar data"},
+            {campo: "estado", tipo: "texto", placeholder: "Filtrar estado"},
+            {campo: "situacao", tipo: "texto", placeholder: "Filtrar situação"},
+            {campo: "valorPendente", tipo: "numero", placeholder: "Filtrar valor"}
+        ]
+    },
+    clientes: {
+        seletor: "#page-clientes .clients-table:not(.client-invoices-table)",
+        renderizar: function() { renderizarClientes(); },
+        campos: [
+            {campo: "cliente", tipo: "texto", placeholder: "Filtrar cliente"},
+            {campo: "vendedor", tipo: "texto", placeholder: "Filtrar vendedor"},
+            {campo: "faturas", tipo: "numero", placeholder: "Filtrar nº"},
+            {campo: "dentroPrazo", tipo: "numero", placeholder: "Filtrar valor/nº"},
+            {campo: "vencidas", tipo: "numero", placeholder: "Filtrar valor/nº"},
+            {campo: "valorPendente", tipo: "numero", placeholder: "Filtrar valor"}
+        ]
+    },
+    contencioso: {
+        seletor: "#page-contencioso .clients-table",
+        renderizar: function() { renderizarContencioso(); },
+        campos: [
+            {campo: "cliente", tipo: "texto", placeholder: "Filtrar cliente"},
+            {campo: "vendedor", tipo: "texto", placeholder: "Filtrar vendedor"},
+            {campo: "faturas", tipo: "numero", placeholder: "Filtrar nº"},
+            {campo: "dentroPrazo", tipo: "numero", placeholder: "Filtrar valor/nº"},
+            {campo: "vencidas", tipo: "numero", placeholder: "Filtrar valor/nº"},
+            {campo: "valorPendente", tipo: "numero", placeholder: "Filtrar valor"}
+        ]
+    },
+    meusClientes: {
+        seletor: "#page-meus-clientes .my-clients-table",
+        renderizar: function() { renderizarMinhasFaturas(); },
+        campos: [
+            {campo: "cliente", tipo: "texto", placeholder: "Filtrar cliente"},
+            {campo: "faturas", tipo: "numero", placeholder: "Filtrar nº"},
+            {campo: "dentroPrazo", tipo: "numero", placeholder: "Filtrar valor/nº"},
+            {campo: "vencidas", tipo: "numero", placeholder: "Filtrar valor/nº"},
+            {campo: "semStatus", tipo: "numero", placeholder: "Filtrar nº"},
+            {campo: "valorPendente", tipo: "numero", placeholder: "Filtrar valor"}
+        ]
+    }
+};
+
+const ESTADO_TABELAS = Object.keys(CONFIGURACAO_TABELAS).reduce(
+    function(resultado, nome) {
+        resultado[nome] = {filtros: {}, ordenacao: {campo: "", direcao: "asc"}};
+        return resultado;
+    },
+    {}
+);
+
 
 /*
 |--------------------------------------------------------------------------
@@ -340,11 +399,246 @@ document.addEventListener("DOMContentLoaded", function() {
 
 function inicializarInterface() {
     aplicarTemaGuardado();
+    inicializarControlesTabelas();
     registarEventosInterface();
 
     if (window.lucide) {
         window.lucide.createIcons();
     }
+}
+
+
+function inicializarControlesTabelas() {
+    Object.keys(CONFIGURACAO_TABELAS).forEach(function(nomeTabela) {
+        const configuracao = CONFIGURACAO_TABELAS[nomeTabela];
+        const tabela = document.querySelector(configuracao.seletor);
+        if (!tabela || tabela.dataset.controlesAtivos === "true") return;
+
+        const cabecalho = tabela.querySelector("thead");
+        const celulas = cabecalho && cabecalho.querySelectorAll("tr:first-child th");
+        if (!cabecalho || !celulas || celulas.length < configuracao.campos.length) return;
+
+        configuracao.campos.forEach(function(definicao, indice) {
+            const celula = celulas[indice];
+            const rotulo = celula.textContent.trim();
+            celula.innerHTML = `
+                <button class="table-sort-button" type="button"
+                    data-table-sort="${nomeTabela}"
+                    data-sort-field="${definicao.campo}"
+                    aria-label="Ordenar por ${escaparHtml(rotulo)}">
+                    <span>${escaparHtml(rotulo)}</span>
+                    <i data-lucide="arrow-up-down"></i>
+                </button>`;
+        });
+
+        const temColunaAcoes = celulas.length > configuracao.campos.length;
+        const botaoLimpar = `
+            <button class="table-clear-filters" type="button"
+                data-clear-table-filters="${nomeTabela}"
+                title="Limpar filtros desta tabela"
+                aria-label="Limpar filtros desta tabela">
+                <i data-lucide="filter-x"></i>
+            </button>`;
+        const linhaFiltros = document.createElement("tr");
+        linhaFiltros.className = "table-column-filters";
+        linhaFiltros.innerHTML = configuracao.campos.map(function(definicao, indice) {
+            return `
+                <th>
+                    <div class="table-filter-cell">
+                        <label class="table-column-filter">
+                            <i data-lucide="filter"></i>
+                            <input type="search"
+                                data-table-filter="${nomeTabela}"
+                                data-filter-field="${definicao.campo}"
+                                placeholder="${escaparHtml(definicao.placeholder)}"
+                                aria-label="${escaparHtml(definicao.placeholder)}">
+                        </label>
+                        ${!temColunaAcoes && indice === configuracao.campos.length - 1
+                            ? botaoLimpar : ""}
+                    </div>
+                </th>`;
+        }).join("") + (temColunaAcoes
+            ? `<th class="table-filter-actions">${botaoLimpar}</th>`
+            : "");
+        cabecalho.appendChild(linhaFiltros);
+        tabela.dataset.controlesAtivos = "true";
+
+        tabela.querySelectorAll("[data-table-sort]").forEach(function(botao) {
+            botao.addEventListener("click", function() {
+                alterarOrdenacaoTabela(nomeTabela, botao.dataset.sortField);
+            });
+        });
+        tabela.querySelectorAll("[data-table-filter]").forEach(function(campo) {
+            campo.addEventListener("input", function() {
+                ESTADO_TABELAS[nomeTabela].filtros[campo.dataset.filterField] =
+                    campo.value.trim();
+                configuracao.renderizar();
+            });
+        });
+        const limpar = tabela.querySelector("[data-clear-table-filters]");
+        if (limpar) {
+            limpar.addEventListener("click", function() {
+                ESTADO_TABELAS[nomeTabela].filtros = {};
+                tabela.querySelectorAll("[data-table-filter]").forEach(function(campo) {
+                    campo.value = "";
+                });
+                configuracao.renderizar();
+            });
+        }
+    });
+}
+
+
+function alterarOrdenacaoTabela(nomeTabela, campo) {
+    const estado = ESTADO_TABELAS[nomeTabela];
+    if (!estado) return;
+    if (estado.ordenacao.campo === campo) {
+        estado.ordenacao.direcao = estado.ordenacao.direcao === "asc" ? "desc" : "asc";
+    } else {
+        estado.ordenacao = {campo: campo, direcao: "asc"};
+    }
+    atualizarIndicadoresOrdenacao(nomeTabela);
+    CONFIGURACAO_TABELAS[nomeTabela].renderizar();
+}
+
+
+function atualizarIndicadoresOrdenacao(nomeTabela) {
+    const configuracao = CONFIGURACAO_TABELAS[nomeTabela];
+    const estado = ESTADO_TABELAS[nomeTabela];
+    const tabela = configuracao && document.querySelector(configuracao.seletor);
+    if (!tabela || !estado) return;
+
+    tabela.querySelectorAll("[data-table-sort]").forEach(function(botao) {
+        const ativo = botao.dataset.sortField === estado.ordenacao.campo;
+        botao.classList.toggle("active", ativo);
+        botao.setAttribute("aria-sort", ativo
+            ? (estado.ordenacao.direcao === "asc" ? "ascending" : "descending")
+            : "none");
+        const icone = botao.querySelector("svg, i");
+        if (icone) {
+            const novoIcone = document.createElement("i");
+            novoIcone.setAttribute("data-lucide", ativo
+                ? (estado.ordenacao.direcao === "asc" ? "arrow-up" : "arrow-down")
+                : "arrow-up-down");
+            icone.replaceWith(novoIcone);
+        }
+    });
+    if (window.lucide) window.lucide.createIcons();
+}
+
+
+function normalizarTextoFiltroTabela(valor) {
+    return String(valor == null ? "" : valor)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+
+function textoPesquisavelTabela(valor) {
+    if (Array.isArray(valor)) {
+        return valor.map(textoPesquisavelTabela).join(" ");
+    }
+    if (typeof valor === "number") {
+        return [valor, formatarNumero(valor), formatarMoeda(valor)].join(" ");
+    }
+    return String(valor == null ? "" : valor);
+}
+
+
+function aplicarFiltrosEOrdenacaoTabela(lista, nomeTabela, obterValores) {
+    const estado = ESTADO_TABELAS[nomeTabela];
+    const configuracao = CONFIGURACAO_TABELAS[nomeTabela];
+    if (!estado || !configuracao) return lista.slice();
+
+    const filtrada = lista.filter(function(item) {
+        const valores = obterValores(item);
+        return Object.keys(estado.filtros).every(function(campo) {
+            const termo = normalizarTextoFiltroTabela(estado.filtros[campo]);
+            if (!termo) return true;
+            const candidato = normalizarTextoFiltroTabela(
+                textoPesquisavelTabela(valores[campo])
+            );
+            const termoCompacto = termo.replace(/[^a-z0-9]/g, "");
+            const candidatoCompacto = candidato.replace(/[^a-z0-9]/g, "");
+            return candidato.includes(termo) ||
+                (termoCompacto && candidatoCompacto.includes(termoCompacto));
+        });
+    });
+
+    const campoOrdenacao = estado.ordenacao.campo;
+    if (!campoOrdenacao) return filtrada;
+    const definicao = configuracao.campos.find(function(campo) {
+        return campo.campo === campoOrdenacao;
+    });
+    const sentido = estado.ordenacao.direcao === "desc" ? -1 : 1;
+
+    return filtrada.slice().sort(function(a, b) {
+        const valorA = obterValorOrdenacaoTabela(obterValores(a)[campoOrdenacao], definicao);
+        const valorB = obterValorOrdenacaoTabela(obterValores(b)[campoOrdenacao], definicao);
+        if (typeof valorA === "number" && typeof valorB === "number") {
+            return (valorA - valorB) * sentido;
+        }
+        return String(valorA).localeCompare(String(valorB), "pt", {
+            numeric: true,
+            sensitivity: "base"
+        }) * sentido;
+    });
+}
+
+
+function obterValorOrdenacaoTabela(valor, definicao) {
+    const principal = Array.isArray(valor) ? valor[0] : valor;
+    if (definicao && definicao.tipo === "numero") return Number(principal || 0);
+    if (definicao && definicao.tipo === "data") {
+        const data = converterDataFrontend(principal);
+        return data ? data.getTime() : 0;
+    }
+    return normalizarTextoFiltroTabela(principal);
+}
+
+
+function obterValoresFaturaTabela(fatura) {
+    const estado = obterEstadoFaturaFrontend(fatura);
+    return {
+        cliente: [fatura.nome, fatura.numeroCliente],
+        documento: [fatura.documento, fatura.numeroDocumento],
+        vencimento: fatura.dataVencimento,
+        estado: obterRotuloEstadoFatura(estado),
+        situacao: obterSituacaoTemporalFatura(fatura),
+        valorPendente: Number(fatura.valorPendente || 0)
+    };
+}
+
+
+function obterValoresClienteTabela(cliente) {
+    return {
+        cliente: [
+            cliente.nome,
+            cliente.numeroCliente,
+            cliente.seguroCredito ? "Seguro de crédito" : ""
+        ],
+        vendedor: [cliente.vendedorNome, cliente.vendedorId],
+        faturas: Number(cliente.totalFaturas || 0),
+        dentroPrazo: [
+            Number(cliente.dentroPrazo.valorPendente || 0),
+            Number(cliente.dentroPrazo.totalFaturas || 0)
+        ],
+        vencidas: [
+            Number(cliente.vencidas.valorPendente || 0),
+            Number(cliente.vencidas.totalFaturas || 0)
+        ],
+        valorPendente: Number(cliente.valorPendente || 0)
+    };
+}
+
+
+function obterValoresMeusClientesTabela(cliente) {
+    const valores = obterValoresClienteTabela(cliente);
+    valores.semStatus = Number(cliente.semStatus || 0);
+    return valores;
 }
 
 
@@ -3374,7 +3668,7 @@ function renderizarTabelaFaturas() {
         return;
     }
 
-    const filtradas =
+    const filtradasBase =
         DATA.faturas.filter(
             function(fatura) {
                 const estado =
@@ -3410,6 +3704,12 @@ function renderizarTabelaFaturas() {
                 );
             }
         );
+
+    const filtradas = aplicarFiltrosEOrdenacaoTabela(
+        filtradasBase,
+        "faturas",
+        obterValoresFaturaTabela
+    );
 
     if (ELEMENTOS.faturasResumo) {
         ELEMENTOS.faturasResumo.textContent =
@@ -3607,7 +3907,7 @@ function renderizarContencioso() {
     ELEMENTOS.contenciosoFaturasVencidas.textContent = formatarNumero(vencidas);
     ELEMENTOS.contenciosoValorTotal.textContent = formatarMoeda(valorTotal);
 
-    const filtrados = clientes.filter(function(cliente) {
+    const filtradosBase = clientes.filter(function(cliente) {
         const texto = [
             cliente.numeroCliente,
             cliente.nome,
@@ -3624,6 +3924,12 @@ function renderizarContencioso() {
         }
         return correspondeFiltro && (!pesquisaContencioso || texto.includes(pesquisaContencioso));
     });
+
+    const filtrados = aplicarFiltrosEOrdenacaoTabela(
+        filtradosBase,
+        "contencioso",
+        obterValoresClienteTabela
+    );
 
     if (!filtrados.length) {
         ELEMENTOS.contenciosoTableBody.innerHTML =
@@ -3697,7 +4003,7 @@ function renderizarClientes() {
             formatarMoeda(valorTotal);
     }
 
-    const filtrados =
+    const filtradosBase =
         clientes.filter(function(cliente) {
             const texto =
                 [
@@ -3726,6 +4032,12 @@ function renderizarClientes() {
 
             return correspondePesquisa && correspondeFiltro;
         });
+
+    const filtrados = aplicarFiltrosEOrdenacaoTabela(
+        filtradosBase,
+        "clientes",
+        obterValoresClienteTabela
+    );
 
     if (filtrados.length === 0) {
         ELEMENTOS.clientsTableBody.innerHTML = `
@@ -4086,7 +4398,7 @@ function renderizarMinhasFaturas() {
     ELEMENTOS.myInvoicesOverdue.textContent = formatarNumero(vencidas.length);
     ELEMENTOS.myOutstandingTotal.textContent = formatarMoeda(valor);
 
-    const clientesFiltrados = clientes.filter(function(cliente) {
+    const clientesFiltradosBase = clientes.filter(function(cliente) {
         let correspondeFiltro = filtroMinhasFaturas === "TODAS";
         if (filtroMinhasFaturas === "VENCIDA") {
             correspondeFiltro = cliente.vencidas.totalFaturas > 0;
@@ -4105,6 +4417,12 @@ function renderizarMinhasFaturas() {
         return correspondeFiltro &&
             (!pesquisaMinhasFaturas || texto.includes(pesquisaMinhasFaturas));
     });
+
+    const clientesFiltrados = aplicarFiltrosEOrdenacaoTabela(
+        clientesFiltradosBase,
+        "meusClientes",
+        obterValoresMeusClientesTabela
+    );
 
     if (!clientesFiltrados.length) {
         ELEMENTOS.myInvoicesTableBody.innerHTML =
