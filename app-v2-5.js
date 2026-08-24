@@ -9,6 +9,15 @@ const Faturas = {};
 const Historico = {};
 const AI = {};
 
+function renderizarSeloSeguroCredito(cliente) {
+    if (!cliente || !cliente.seguroCredito) return "";
+    return `
+        <span class="credit-insurance-badge" title="Cliente com seguro de crédito">
+            <i data-lucide="shield-check"></i>
+            Seguro de crédito
+        </span>`;
+}
+
 
 const DATA = {
     clientes: [],
@@ -3535,6 +3544,7 @@ function construirResumoClientes(faturasOrigem) {
                 nome: nome,
                 vendedorId: String(fatura.vendedorId || "").trim(),
                 vendedorNome: String(fatura.vendedorNome || "Sem vendedor associado").trim(),
+                seguroCredito: Boolean(fatura.seguroCredito),
                 totalFaturas: 0,
                 valorPendente: 0,
                 dentroPrazo: {
@@ -3598,7 +3608,13 @@ function renderizarContencioso() {
     ELEMENTOS.contenciosoValorTotal.textContent = formatarMoeda(valorTotal);
 
     const filtrados = clientes.filter(function(cliente) {
-        const texto = [cliente.numeroCliente, cliente.nome, cliente.vendedorNome, cliente.vendedorId]
+        const texto = [
+            cliente.numeroCliente,
+            cliente.nome,
+            cliente.vendedorNome,
+            cliente.vendedorId,
+            cliente.seguroCredito ? "seguro de crédito" : ""
+        ]
             .join(" ").toLowerCase();
         let correspondeFiltro = true;
         if (filtroContencioso === "VENCIDA") {
@@ -3619,7 +3635,7 @@ function renderizarContencioso() {
     ELEMENTOS.contenciosoTableBody.innerHTML = filtrados.map(function(cliente) {
         return `
             <tr>
-                <td><div class="invoice-client-cell"><strong>${escaparHtml(cliente.nome)}</strong><span>${escaparHtml(cliente.numeroCliente || "—")}</span></div></td>
+                <td><div class="invoice-client-cell"><strong>${escaparHtml(cliente.nome)}</strong><span>${escaparHtml(cliente.numeroCliente || "—")}</span>${renderizarSeloSeguroCredito(cliente)}</div></td>
                 <td><div class="client-seller-cell"><strong>${escaparHtml(cliente.vendedorNome || "Sem vendedor associado")}</strong>${cliente.vendedorId ? `<span>${escaparHtml(cliente.vendedorId)}</span>` : ""}</div></td>
                 <td class="align-center"><strong>${formatarNumero(cliente.totalFaturas)}</strong></td>
                 <td class="align-right"><span class="client-value inside">${formatarMoeda(cliente.dentroPrazo.valorPendente)}</span><small>${formatarNumero(cliente.dentroPrazo.totalFaturas)} faturas</small></td>
@@ -3688,7 +3704,8 @@ function renderizarClientes() {
                     cliente.numeroCliente,
                     cliente.nome,
                     cliente.vendedorNome,
-                    cliente.vendedorId
+                    cliente.vendedorId,
+                    cliente.seguroCredito ? "seguro de crédito" : ""
                 ].join(" ").toLowerCase();
 
             const correspondePesquisa =
@@ -3731,6 +3748,7 @@ function renderizarClientes() {
                         <div class="invoice-client-cell">
                             <strong>${escaparHtml(cliente.nome)}</strong>
                             <span>${escaparHtml(cliente.numeroCliente || "—")}</span>
+                            ${renderizarSeloSeguroCredito(cliente)}
                         </div>
                     </td>
 
@@ -3821,10 +3839,14 @@ function abrirDetalheCliente(chave, origem) {
     ELEMENTOS.clientDetailName.textContent =
         cliente.nome;
 
-    ELEMENTOS.clientDetailNumber.textContent =
-        cliente.numeroCliente
-            ? "Cliente " + cliente.numeroCliente
-            : "Sem número de cliente";
+    ELEMENTOS.clientDetailNumber.innerHTML = `
+        <span>${escaparHtml(
+            cliente.numeroCliente
+                ? "Cliente " + cliente.numeroCliente
+                : "Sem número de cliente"
+        )}</span>
+        ${renderizarSeloSeguroCredito(cliente)}
+    `;
 
     renderizarAcaoAdminContencioso(cliente, origem);
 
@@ -4074,7 +4096,11 @@ function renderizarMinhasFaturas() {
             correspondeFiltro = cliente.dentroPrazo.totalFaturas > 0;
         }
 
-        const texto = [cliente.numeroCliente, cliente.nome]
+        const texto = [
+            cliente.numeroCliente,
+            cliente.nome,
+            cliente.seguroCredito ? "seguro de crédito" : ""
+        ]
             .join(" ").toLowerCase();
         return correspondeFiltro &&
             (!pesquisaMinhasFaturas || texto.includes(pesquisaMinhasFaturas));
@@ -4095,6 +4121,7 @@ function renderizarMinhasFaturas() {
                     <div class="invoice-client-cell">
                         <strong>${escaparHtml(cliente.nome || "Cliente sem nome")}</strong>
                         <span>${escaparHtml(cliente.numeroCliente || "—")}</span>
+                        ${renderizarSeloSeguroCredito(cliente)}
                     </div>
                 </td>
                 <td class="align-center"><strong>${formatarNumero(cliente.totalFaturas)}</strong></td>
