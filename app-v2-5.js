@@ -4925,9 +4925,15 @@ function construirAnaliseAI() {
     const risco = distribuicao.vencidas + distribuicao.contencioso;
     const top5 = clientes.slice(0, 5).reduce(function(s, c) { return s + Number(c.valorPendente || 0); }, 0);
     const vencidas = DATA.faturas.filter(function(f) { return obterEstadoFaturaFrontend(f) === "VENCIDA"; });
-    const faturas90 = vencidas.filter(function(f) { return Number(f.dias || 0) > 90; });
+    const faturas90 = vencidas.filter(function(f) {
+        return calcularDiasAtrasoFatura(f) > 90;
+    });
     const valor90 = faturas90.reduce(function(s, f) { return s + Number(f.valorPendente || 0); }, 0);
-    const atrasoMedio = vencidas.length ? vencidas.reduce(function(s, f) { return s + Math.max(0, Number(f.dias || 0)); }, 0) / vencidas.length : 0;
+    const atrasoMedio = vencidas.length
+        ? vencidas.reduce(function(s, f) {
+            return s + calcularDiasAtrasoFatura(f);
+        }, 0) / vencidas.length
+        : 0;
 
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -4966,7 +4972,10 @@ function construirAnaliseAI() {
     )));
 
     const prioridades = clientes.map(function(c) {
-        const antigas = c.faturas.filter(function(f) { return obterEstadoFaturaFrontend(f) === "VENCIDA" && Number(f.dias || 0) > 90; });
+        const antigas = c.faturas.filter(function(f) {
+            return obterEstadoFaturaFrontend(f) === "VENCIDA" &&
+                calcularDiasAtrasoFatura(f) > 90;
+        });
         const riscoCliente = Number(c.vencidas.valorPendente || 0) + Number(c.contencioso.valorPendente || 0);
         let score = 0;
         const motivos = [];
@@ -5203,6 +5212,37 @@ function converterDataFrontend(
     data.setHours(0, 0, 0, 0);
 
     return data;
+}
+
+
+function calcularDiasAtrasoFatura(fatura, dataReferencia) {
+    const vencimento = converterDataFrontend(
+        fatura && fatura.dataVencimento
+    );
+
+    if (!vencimento) {
+        return 0;
+    }
+
+    const hoje = dataReferencia instanceof Date
+        ? new Date(dataReferencia)
+        : new Date();
+
+    const diaVencimentoUtc = Date.UTC(
+        vencimento.getFullYear(),
+        vencimento.getMonth(),
+        vencimento.getDate()
+    );
+    const diaHojeUtc = Date.UTC(
+        hoje.getFullYear(),
+        hoje.getMonth(),
+        hoje.getDate()
+    );
+
+    return Math.max(
+        0,
+        Math.floor((diaHojeUtc - diaVencimentoUtc) / 86400000)
+    );
 }
 
 
