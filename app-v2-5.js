@@ -1645,13 +1645,13 @@ function aplicarDadosAplicacao(dados) {
 
     DATA.utilizador = dados.utilizador || null;
     DATA.minhasFaturas = Array.isArray(dados.minhasFaturas)
-        ? dados.minhasFaturas
+        ? dados.minhasFaturas.filter(faturaComSaldoPositivo)
         : [];
     DATA.contenciosoFaturas = Array.isArray(dados.contenciosoPendentes)
-        ? dados.contenciosoPendentes
+        ? dados.contenciosoPendentes.filter(faturaComSaldoPositivo)
         : [];
     DATA.faturas = Array.isArray(dados.pendentes)
-        ? dados.pendentes
+        ? dados.pendentes.filter(faturaComSaldoPositivo)
         : [];
     DATA.utilizadores = Array.isArray(dados.utilizadores)
         ? dados.utilizadores
@@ -1666,22 +1666,22 @@ function aplicarDadosAplicacao(dados) {
     DATA.dashboard = {
         totalClientes:
             Number(
-                resumo.totalClientes || 0
+                decomposicao.totalClientes
             ),
 
         totalFaturas:
             Number(
-                resumo.totalFaturas || 0
+                decomposicao.totalFaturasAutoritativo
             ),
 
         valorTotal:
             Number(
-                resumo.valorTotal || 0
+                decomposicao.valorTotal
             ),
 
         valorPendente:
             Number(
-                resumo.valorPendente || 0
+                decomposicao.totalAutoritativo
             ),
 
         totalVencidas:
@@ -1723,11 +1723,7 @@ function aplicarDadosAplicacao(dados) {
 
     DATA.rankings = {
         clientes:
-            Array.isArray(
-                dados.rankingClientes
-            )
-                ? dados.rankingClientes
-                : []
+            construirResumoClientes(DATA.faturas).slice(0, 10)
     };
 
     DATA.historicoEvolucao =
@@ -3429,92 +3425,50 @@ function calcularPercentagem(
 }
 
 
+function faturaComSaldoPositivo(fatura) {
+    const valor = Number(fatura && fatura.valorPendente);
+    return Number.isFinite(valor) && valor > 0;
+}
+
+
 function decomporDashboardAutoritativo(resumo, faturasNormais, faturasContencioso) {
-    const totalAutoritativo = Math.max(0, Number(resumo?.valorPendente || 0));
-    const totalFaturasAutoritativo = Math.max(0, Math.round(Number(resumo?.totalFaturas || 0)));
-    const chaveFatura = function(fatura) {
-        return String(fatura.idFatura || [
-            fatura.numeroCliente,
-            fatura.documento,
-            fatura.numeroDocumento,
-            fatura.dataVencimento
-        ].join("|"));
+    const vistos = new Set();
+    const clientes = new Set();
+    const resultado = {
+        totalAutoritativo: 0, totalFaturasAutoritativo: 0,
+        totalClientes: 0, valorTotal: 0,
+        vencidas: {valorPendente: 0, totalFaturas: 0},
+        dentroPrazo: {valorPendente: 0, totalFaturas: 0},
+        contencioso: {valorPendente: 0, totalFaturas: 0}
     };
-    const chavesContencioso = new Set();
-    const contenciosoUnico = (Array.isArray(faturasContencioso) ? faturasContencioso : [])
-        .filter(function(fatura) {
-            const chave = chaveFatura(fatura);
-            if (chavesContencioso.has(chave)) return false;
-            chavesContencioso.add(chave);
-            return true;
+    function acumular(faturas, legal) {
+        (Array.isArray(faturas) ? faturas : []).filter(faturaComSaldoPositivo).forEach(function(fatura) {
+            const chave = String(fatura.idFatura || [
+                fatura.numeroCliente, fatura.documento, fatura.numeroDocumento,
+                fatura.prt, fatura.dataVencimento
+            ].join("|"));
+            if (vistos.has(chave)) return;
+            vistos.add(chave);
+            clientes.add(String(fatura.numeroCliente || fatura.nome || ""));
+            const categoria = legal ? "contencioso" :
+                obterEstadoFaturaFrontend(fatura) === "VENCIDA" ? "vencidas" : "dentroPrazo";
+            const centimos = Math.round(Number(fatura.valorPendente) * 100);
+            resultado[categoria].valorPendente += centimos;
+            resultado[categoria].totalFaturas++;
+            resultado.totalFaturasAutoritativo++;
+            resultado.valorTotal += Number(fatura.valorTotal || 0);
         });
-    const contencioso = contenciosoUnico
-        .reduce(function(acumulado, fatura) {
-            acumulado.valorPendente += Number(fatura.valorPendente || 0);
-            acumulado.totalFaturas += 1;
-            return acumulado;
-        }, {valorPendente: 0, totalFaturas: 0});
-
-    // Contencioso é sempre a categoria prioritária. O estado temporal dessas
-    // faturas não as volta a colocar em Vencidas ou Dentro do prazo.
-    contencioso.valorPendente = Math.min(totalAutoritativo, Math.max(0, contencioso.valorPendente));
-    contencioso.totalFaturas = Math.min(totalFaturasAutoritativo, contencioso.totalFaturas);
-
-    const chavesNormais = new Set();
-    const normaisCalculadas = (Array.isArray(faturasNormais) ? faturasNormais : [])
-        .filter(function(fatura) {
-            const chave = chaveFatura(fatura);
-            if (chavesContencioso.has(chave) || chavesNormais.has(chave)) return false;
-            chavesNormais.add(chave);
-            return true;
-        })
-        .reduce(function(acumulado, fatura) {
-            const valor = Math.max(0, Number(fatura.valorPendente || 0));
-            if (obterEstadoFaturaFrontend(fatura) === "VENCIDA") {
-                acumulado.vencidas.valorPendente += valor;
-                acumulado.vencidas.totalFaturas += 1;
-            } else {
-                acumulado.dentroPrazo.valorPendente += valor;
-                acumulado.dentroPrazo.totalFaturas += 1;
-            }
-            return acumulado;
-        }, {
-            vencidas: {valorPendente: 0, totalFaturas: 0},
-            dentroPrazo: {valorPendente: 0, totalFaturas: 0}
-        });
-
-    const alvoNormal = Math.max(0, totalAutoritativo - contencioso.valorPendente);
-    const alvoFaturasNormais = Math.max(0, totalFaturasAutoritativo - contencioso.totalFaturas);
-    const valorNormalCalculado = normaisCalculadas.vencidas.valorPendente +
-        normaisCalculadas.dentroPrazo.valorPendente;
-    const faturasNormaisCalculadas = normaisCalculadas.vencidas.totalFaturas +
-        normaisCalculadas.dentroPrazo.totalFaturas;
-
-    const proporcaoVencida = valorNormalCalculado > 0
-        ? normaisCalculadas.vencidas.valorPendente / valorNormalCalculado
-        : 0;
-    const proporcaoFaturasVencidas = faturasNormaisCalculadas > 0
-        ? normaisCalculadas.vencidas.totalFaturas / faturasNormaisCalculadas
-        : 0;
-    const valorVencidas = alvoNormal * proporcaoVencida;
-    const faturasVencidas = Math.min(
-        alvoFaturasNormais,
-        Math.max(0, Math.round(alvoFaturasNormais * proporcaoFaturasVencidas))
-    );
-
-    return {
-        totalAutoritativo: totalAutoritativo,
-        totalFaturasAutoritativo: totalFaturasAutoritativo,
-        vencidas: {
-            valorPendente: valorVencidas,
-            totalFaturas: faturasVencidas
-        },
-        dentroPrazo: {
-            valorPendente: alvoNormal - valorVencidas,
-            totalFaturas: alvoFaturasNormais - faturasVencidas
-        },
-        contencioso: contencioso
-    };
+    }
+    // Soma direta dos documentos positivos; contencioso tem prioridade.
+    acumular(faturasContencioso, true);
+    acumular(faturasNormais, false);
+    ["vencidas", "dentroPrazo", "contencioso"].forEach(function(categoria) {
+        resultado.totalAutoritativo += resultado[categoria].valorPendente;
+        resultado[categoria].valorPendente /= 100;
+    });
+    resultado.totalAutoritativo /= 100;
+    resultado.totalClientes = clientes.size;
+    return resultado;
 }
 
 
