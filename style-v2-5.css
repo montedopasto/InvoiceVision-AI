@@ -3405,3 +3405,21 @@ th.align-right .table-sort-button {
         grid-template-columns: 1fr;
     }
 }
+/* Créditos por aplicar: separados dos indicadores de faturas e de aging. */
+.credits-panel { padding: 24px; margin: 24px 0; }
+.credits-panel[hidden], .credit-documents[hidden] { display: none; }
+.credits-panel h3 { margin: 0 0 18px; }
+.credits-summary { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 18px; }
+.credit-summary-item { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--border-color, #dce5e1); border-radius: 12px; }
+.credit-summary-item span { font-size: 14px; }
+.credit-summary-item strong { font-size: clamp(18px,1.7vw,26px); font-variant-numeric: tabular-nums; }
+.credits-explanation, .credit-documents p { font-size: 14px; line-height: 1.6; margin: 16px 0; }
+.credits-panel summary { cursor: pointer; padding: 10px 0; font-weight: 700; }
+.credits-table { width: 100%; min-width: 1050px; border-collapse: collapse; font-size: 15px; }
+.credits-table td, .credits-table th { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color, #dce5e1); }
+.credits-table td.align-right { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.credits-table th button { color: inherit; font: inherit; font-weight: 700; border: 0; background: none; cursor: pointer; text-align: left; }
+.credits-table th input { width: 100%; min-width: 75px; padding: 8px; border: 1px solid #98aaa2; border-radius: 6px; color: inherit; background: transparent; font: inherit; }
+.credit-documents { margin: 20px 0; }
+@media (max-width: 1000px) { .credits-summary { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 520px) { .credits-summary { grid-template-columns: 1fr; } .credits-panel { padding: 16px; } }
