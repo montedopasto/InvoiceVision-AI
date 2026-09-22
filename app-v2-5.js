@@ -25,6 +25,8 @@ const DATA = {
     utilizador: null,
     minhasFaturas: [],
     contenciosoFaturas: [],
+    creditos: [],
+    creditosDisponiveis: false,
     utilizadores: [],
 
     dashboard: {
@@ -1644,6 +1646,8 @@ function aplicarDadosAplicacao(dados) {
         dados.resumo || {};
 
     DATA.utilizador = dados.utilizador || null;
+    DATA.creditosDisponiveis = Array.isArray(dados.creditos);
+    DATA.creditos = DATA.creditosDisponiveis ? dados.creditos.filter(creditoComSaldoNegativo) : [];
     DATA.minhasFaturas = Array.isArray(dados.minhasFaturas)
         ? dados.minhasFaturas.filter(faturaComSaldoPositivo)
         : [];
@@ -1768,6 +1772,7 @@ function aplicarDadosAplicacao(dados) {
     configurarInterfacePorPerfil();
     renderizarMinhasFaturas();
     renderizarUtilizadores();
+    renderizarPaineisCreditos();
 
     try {
         renderizarHistoricoCompleto();
@@ -3425,6 +3430,148 @@ function calcularPercentagem(
 }
 
 
+function creditoComSaldoNegativo(documento) {
+    const valor = Number(documento && documento.valorPendente);
+    return Number.isFinite(valor) && valor < 0;
+}
+
+function chaveClienteCredito(documento) {
+    return String(documento.numeroCliente || "").trim() || String(documento.nome || "").trim().toLowerCase();
+}
+
+function tipoCredito(documento) {
+    const tipo = String(documento.documento || "").trim().toUpperCase();
+    return tipo === "ADC" ? "Adiantamento" : ["NC", "VNC"].includes(tipo) ? "Nota de crédito" : "Outro crédito";
+}
+
+function creditoEmContencioso(documento) {
+    return documento.emContencioso === true || String(documento.estado || "").toUpperCase() === "CONTENCIOSO";
+}
+
+function obterCreditosOrigem(origem) {
+    return DATA.creditos.filter(function(c) {
+        return origem === "global" || (origem === "contencioso" ? creditoEmContencioso(c) : !creditoEmContencioso(c));
+    });
+}
+
+function resumirSaldosCreditos(faturas, creditos) {
+    const resultado = {bruto: 0, adiantamentos: 0, notasCredito: 0, outrosCreditos: 0, totalCreditos: 0, liquido: 0};
+    (faturas || []).filter(faturaComSaldoPositivo).forEach(function(f) {
+        resultado.bruto += Math.round(Number(f.valorPendente) * 100);
+    });
+    (creditos || []).filter(creditoComSaldoNegativo).forEach(function(c) {
+        const tipo = tipoCredito(c);
+        const campo = tipo === "Adiantamento" ? "adiantamentos" : tipo === "Nota de crédito" ? "notasCredito" : "outrosCreditos";
+        resultado[campo] += Math.round(Math.abs(Number(c.valorPendente)) * 100);
+    });
+    resultado.totalCreditos = resultado.adiantamentos + resultado.notasCredito + resultado.outrosCreditos;
+    resultado.liquido = resultado.bruto - resultado.totalCreditos;
+    Object.keys(resultado).forEach(function(k) { resultado[k] /= 100; });
+    return resultado;
+}
+
+function htmlResumoCreditos(saldos) {
+    return [
+        ["Adiantamentos disponíveis", saldos.adiantamentos],
+        ["Notas de crédito", saldos.notasCredito],
+        ["Outros créditos", saldos.outrosCreditos],
+        [saldos.liquido < 0 ? "Saldo a favor (informativo)" : "Saldo líquido (informativo)", Math.abs(saldos.liquido)]
+    ].map(function(item) {
+        return `<article class="credit-summary-item"><span>${item[0]}</span><strong>${formatarMoeda(item[1])}</strong></article>`;
+    }).join("");
+}
+
+function valoresLinhaCredito(c) {
+    return [
+        [c.numeroCliente, c.nome].filter(Boolean).join(" · "),
+        [c.documento, c.numeroDocumento].filter(Boolean).join(" "),
+        c.dataDocumento || "", tipoCredito(c), Math.abs(Number(c.valorPendente)),
+        creditoEmContencioso(c) ? "Contencioso" : "Normal", c.nota || ""
+    ];
+}
+
+function htmlLinhasCreditos(creditos, origem, comDetalhe) {
+    return creditos.map(function(c) {
+        const destino = creditoEmContencioso(c) ? "contencioso" : origem === "meus" ? "meus" : "normal";
+        return `<tr>${valoresLinhaCredito(c).map(function(v, i) {
+            return `<td${i === 4 ? ' class="align-right"' : ''}>${i === 4 ? formatarMoeda(v) : escaparHtml(v || "—")}</td>`;
+        }).join("")}${comDetalhe ? `<td><button type="button" class="client-detail-btn" data-credit-client="${escaparHtml(chaveClienteCredito(c))}" data-credit-origin="${destino}">Ver detalhe</button></td>` : ""}</tr>`;
+    }).join("") || `<tr><td colspan="${comDetalhe ? 8 : 7}">Sem créditos com estes filtros.</td></tr>`;
+}
+
+function htmlTabelaCreditos(creditos, origem, comDetalhe) {
+    const cabecalhos = ["Cliente", "Documento", "Data", "Tipo", "Valor disponível", "Carteira", "Nota"];
+    return `<div class="clients-table-wrap"><table class="credits-table"><thead><tr>${cabecalhos.map(function(t, i) {
+        return `<th>${comDetalhe ? `<button type="button" data-credit-sort="${i}" aria-label="Ordenar por ${t}">${t} ↕</button>` : t}</th>`;
+    }).join("")}${comDetalhe ? "<th>Detalhe</th>" : ""}</tr>${comDetalhe ? `<tr>${cabecalhos.map(function(t, i) {
+        return `<th><input type="search" data-credit-filter="${i}" aria-label="Filtrar ${t}" placeholder="Filtrar…"></th>`;
+    }).join("")}<th></th></tr>` : ""}</thead><tbody>${htmlLinhasCreditos(creditos, origem, comDetalhe)}</tbody></table></div>`;
+}
+
+function renderizarPaineisCreditos() {
+    [
+        ["page-dashboard", "global", DATA.faturas.concat(DATA.contenciosoFaturas)],
+        ["page-clientes", "normal", DATA.faturas],
+        ["page-faturas", "normal", DATA.faturas],
+        ["page-contencioso", "contencioso", DATA.contenciosoFaturas],
+        ["page-meus-clientes", "meus", DATA.minhasFaturas]
+    ].forEach(function(config) {
+        const pagina = document.getElementById(config[0]);
+        if (!pagina) return;
+        let painel = pagina.querySelector(".credits-panel");
+        if (!painel) {
+            painel = document.createElement("section");
+            painel.className = "panel credits-panel";
+            const ancora = pagina.querySelector(".executive-status-grid, .page-heading");
+            if (ancora) ancora.after(painel); else pagina.appendChild(painel);
+        }
+        painel.hidden = !DATA.creditosDisponiveis;
+        if (!DATA.creditosDisponiveis) return;
+        const creditos = obterCreditosOrigem(config[1]);
+        const saldos = resumirSaldosCreditos(config[2], creditos);
+        painel.innerHTML = `<h3>Adiantamentos e créditos por aplicar</h3>
+            <div class="credits-summary">${htmlResumoCreditos(saldos)}</div>
+            <p class="credits-explanation">Saldo líquido = faturas pendentes (${formatarMoeda(saldos.bruto)}) − créditos (${formatarMoeda(saldos.totalCreditos)}).
+            Os créditos não reduzem as faturas vencidas nem são aplicados automaticamente. A contabilidade faz a aplicação e a próxima importação atualiza os saldos.</p>
+            <details><summary>Ver ${creditos.length} documento(s) de crédito</summary>${htmlTabelaCreditos(creditos, config[1], true)}</details>`;
+        let colunaOrdem = 4;
+        let direcao = -1;
+        function atualizarLinhas() {
+            const filtros = Array.from(painel.querySelectorAll("[data-credit-filter]"));
+            const linhas = creditos.filter(function(c) {
+                const valores = valoresLinhaCredito(c);
+                return filtros.every(function(input) {
+                    const coluna = Number(input.dataset.creditFilter);
+                    const texto = String(valores[coluna]) + (coluna === 4 ? " " + formatarMoeda(valores[coluna]) : "");
+                    return texto.toLocaleLowerCase("pt-PT").includes(input.value.trim().toLocaleLowerCase("pt-PT"));
+                });
+            }).sort(function(a,b) {
+                const va = valoresLinhaCredito(a)[colunaOrdem];
+                const vb = valoresLinhaCredito(b)[colunaOrdem];
+                if (colunaOrdem === 4) return (va-vb)*direcao;
+                if (colunaOrdem === 2) return ((converterDataFrontend(va)?.getTime() || 0) - (converterDataFrontend(vb)?.getTime() || 0))*direcao;
+                return String(va).localeCompare(String(vb), "pt-PT", {numeric:true})*direcao;
+            });
+            painel.querySelector("tbody").innerHTML = htmlLinhasCreditos(linhas, config[1], true);
+        }
+        painel.oninput = function(evento) { if (evento.target.matches("[data-credit-filter]")) atualizarLinhas(); };
+        painel.onclick = function(evento) {
+            const detalhe = evento.target.closest("[data-credit-client]");
+            if (detalhe) abrirDetalheCliente(detalhe.dataset.creditClient, detalhe.dataset.creditOrigin);
+            const ordem = evento.target.closest("[data-credit-sort]");
+            if (ordem) {
+                const coluna = Number(ordem.dataset.creditSort);
+                direcao = colunaOrdem === coluna ? -direcao : 1;
+                colunaOrdem = coluna;
+                painel.querySelectorAll("[data-credit-sort]").forEach(function(b) { b.parentElement.removeAttribute("aria-sort"); });
+                ordem.parentElement.setAttribute("aria-sort", direcao === 1 ? "ascending" : "descending");
+                atualizarLinhas();
+            }
+        };
+        atualizarLinhas();
+    });
+}
+
 function faturaComSaldoPositivo(fatura) {
     const valor = Number(fatura && fatura.valorPendente);
     return Number.isFinite(valor) && valor > 0;
@@ -4085,10 +4232,23 @@ function abrirDetalheCliente(chave, origem) {
     const faturasOrigem = origem === "contencioso"
         ? DATA.contenciosoFaturas
         : (origem === "meus" ? DATA.minhasFaturas : DATA.faturas);
-    const cliente =
+    let cliente =
         construirResumoClientes(faturasOrigem).find(function(item) {
             return item.chave === chave;
         });
+    const creditosCliente = obterCreditosOrigem(origem).filter(function(c) {
+        return chaveClienteCredito(c) === chave;
+    });
+    if (!cliente && creditosCliente.length) {
+        const documento = creditosCliente[0];
+        cliente = {
+            chave: chave, numeroCliente: documento.numeroCliente, nome: documento.nome,
+            seguroCredito: documento.seguroCredito, faturas: [], totalFaturas: 0, valorPendente: 0,
+            dentroPrazo: {totalFaturas: 0, valorPendente: 0},
+            vencidas: {totalFaturas: 0, valorPendente: 0},
+            contencioso: {totalFaturas: 0, valorPendente: 0}
+        };
+    }
 
     if (!cliente || !ELEMENTOS.clientDetailModal) {
         return;
@@ -4142,6 +4302,22 @@ function abrirDetalheCliente(chave, origem) {
         </article>
     `;
 
+    if (DATA.creditosDisponiveis) {
+        ELEMENTOS.clientDetailSummary.insertAdjacentHTML("beforeend",
+            htmlResumoCreditos(resumirSaldosCreditos(cliente.faturas, creditosCliente)));
+    }
+    let detalheCreditos = document.getElementById("clientDetailCredits");
+    if (!detalheCreditos) {
+        detalheCreditos = document.createElement("section");
+        detalheCreditos.id = "clientDetailCredits";
+        detalheCreditos.className = "client-detail-invoices credit-documents";
+        ELEMENTOS.clientDetailSummary.after(detalheCreditos);
+    }
+    detalheCreditos.hidden = !creditosCliente.length;
+    detalheCreditos.innerHTML = creditosCliente.length
+        ? "<h4>Adiantamentos e créditos por aplicar</h4><p>Não descontados das faturas acima. Atualizados pela importação do ficheiro da contabilidade.</p>" + htmlTabelaCreditos(creditosCliente, origem, false)
+        : "";
+
     ELEMENTOS.clientDetailInvoices.innerHTML =
         cliente.faturas
             .slice()
@@ -4190,7 +4366,7 @@ function abrirDetalheCliente(chave, origem) {
                         </td>
                     </tr>
                 `;
-            }).join("");
+            }).join("") || '<tr><td colspan="5">Sem faturas pendentes. Os créditos disponíveis são apresentados em separado.</td></tr>';
 
     ELEMENTOS.clientDetailModal.classList.add("open");
     ELEMENTOS.clientDetailModal.setAttribute("aria-hidden", "false");
