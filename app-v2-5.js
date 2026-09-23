@@ -349,7 +349,11 @@ const CONFIGURACAO_TABELAS = {
             {campo: "faturas", tipo: "numero", placeholder: "Filtrar nº"},
             {campo: "dentroPrazo", tipo: "numero", placeholder: "Filtrar valor/nº"},
             {campo: "vencidas", tipo: "numero", placeholder: "Filtrar valor/nº"},
-            {campo: "valorPendente", tipo: "numero", placeholder: "Filtrar valor"}
+            {campo: "adiantamentos", tipo: "numero", placeholder: "Filtrar valor"},
+            {campo: "notasCredito", tipo: "numero", placeholder: "Filtrar valor"},
+            {campo: "outrosCreditos", tipo: "numero", placeholder: "Filtrar valor"},
+            {campo: "valorPendente", tipo: "numero", placeholder: "Filtrar valor"},
+            {campo: "saldoLiquido", tipo: "numero", placeholder: "Filtrar valor"}
         ]
     },
     contencioso: {
@@ -617,6 +621,10 @@ function obterValoresFaturaTabela(fatura) {
 
 function obterValoresClienteTabela(cliente) {
     return {
+        adiantamentos: Number(cliente.adiantamentos || 0),
+        notasCredito: Number(cliente.notasCredito || 0),
+        outrosCreditos: Number(cliente.outrosCreditos || 0),
+        saldoLiquido: Number(cliente.saldoLiquido || 0),
         cliente: [
             cliente.nome,
             cliente.numeroCliente,
@@ -3430,9 +3438,16 @@ function calcularPercentagem(
 }
 
 
+function documentoHistoricoIgnorado(documento) {
+    const normalizar = valor => String(valor || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return documento && normalizar(documento.numeroCliente) === "0016D" &&
+        normalizar(documento.documento) === "VFA" &&
+        ["FCT2015LEI428", "A0022", "201620"].includes(normalizar(documento.numeroDocumento));
+}
+
 function creditoComSaldoNegativo(documento) {
     const valor = Number(documento && documento.valorPendente);
-    return Number.isFinite(valor) && valor < 0;
+    return !documentoHistoricoIgnorado(documento) && Number.isFinite(valor) && valor < 0;
 }
 
 function chaveClienteCredito(documento) {
@@ -3574,7 +3589,7 @@ function renderizarPaineisCreditos() {
 
 function faturaComSaldoPositivo(fatura) {
     const valor = Number(fatura && fatura.valorPendente);
-    return Number.isFinite(valor) && valor > 0;
+    return !documentoHistoricoIgnorado(fatura) && Number.isFinite(valor) && valor > 0;
 }
 
 
@@ -4062,12 +4077,38 @@ function renderizarContencioso() {
 }
 
 
+function construirResumoClientesComCreditos() {
+    const mapa = new Map(construirResumoClientes().map(c => [c.chave, c]));
+    const porCliente = new Map();
+    obterCreditosOrigem("normal").filter(creditoComSaldoNegativo).forEach(c => {
+        const chave = chaveClienteCredito(c);
+        if (!mapa.has(chave)) mapa.set(chave, {
+            chave, numeroCliente: c.numeroCliente, nome: c.nome,
+            vendedorId: c.vendedorId, vendedorNome: c.vendedorNome, seguroCredito: c.seguroCredito,
+            totalFaturas: 0, valorPendente: 0,
+            dentroPrazo: {totalFaturas: 0, valorPendente: 0},
+            vencidas: {totalFaturas: 0, valorPendente: 0},
+            contencioso: {totalFaturas: 0, valorPendente: 0}
+        });
+        if (!porCliente.has(chave)) porCliente.set(chave, []);
+        porCliente.get(chave).push(c);
+    });
+    return Array.from(mapa.values()).map(c => {
+        const saldos = resumirSaldosCreditos([], porCliente.get(c.chave) || []);
+        return Object.assign(c, {
+            adiantamentos: saldos.adiantamentos, notasCredito: saldos.notasCredito,
+            outrosCreditos: saldos.outrosCreditos,
+            saldoLiquido: (Math.round(c.valorPendente * 100) - Math.round(saldos.totalCreditos * 100)) / 100
+        });
+    }).sort((a,b) => b.valorPendente - a.valorPendente);
+}
+
 function renderizarClientes() {
     if (!ELEMENTOS.clientsTableBody) {
         return;
     }
 
-    const clientes = construirResumoClientes();
+    const clientes = construirResumoClientesComCreditos();
 
     const clientesComVencidas =
         clientes.filter(function(cliente) {
@@ -4143,7 +4184,7 @@ function renderizarClientes() {
     if (filtrados.length === 0) {
         ELEMENTOS.clientsTableBody.innerHTML = `
             <tr>
-                <td colspan="7">
+                <td colspan="11">
                     <div class="table-loading-state">
                         Não foram encontrados clientes com estes filtros.
                     </div>
@@ -4192,12 +4233,15 @@ function renderizarClientes() {
                         <small>${formatarNumero(cliente.vencidas.totalFaturas)} faturas</small>
                     </td>
 
+                    <td class="align-right"><strong>${formatarMoeda(cliente.adiantamentos)}</strong></td>
+                    <td class="align-right"><strong>${formatarMoeda(cliente.notasCredito)}</strong></td>
+                    <td class="align-right"><strong>${formatarMoeda(cliente.outrosCreditos)}</strong></td>
                     <td class="align-right">
                         <strong class="client-total-value">
                             ${formatarMoeda(cliente.valorPendente)}
                         </strong>
                     </td>
-
+                    <td class="align-right"><strong>${formatarMoeda(cliente.saldoLiquido)}</strong>${cliente.saldoLiquido < 0 ? '<small>Saldo a favor</small>' : ''}</td>
                     <td class="align-right">
                         <button
                             class="client-detail-btn"

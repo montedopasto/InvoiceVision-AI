@@ -2511,6 +2511,13 @@ kbd {
     font-size: 11px;
 }
 
+#page-clientes .clients-panel .clients-table { min-width: 1900px; table-layout: fixed; }
+#page-clientes .clients-panel .clients-table th:nth-child(n) { width: 150px; }
+#page-clientes .clients-panel .clients-table th:first-child { width: 280px; }
+#page-clientes .clients-panel .clients-table th:nth-child(2) { width: 185px; }
+#page-clientes .clients-panel .clients-table th:nth-child(3) { width: 95px; }
+#page-clientes .clients-panel .clients-table td.align-right strong { white-space: nowrap; }
+
 .clients-table-wrap {
     width: 100%;
     overflow-x: auto;
