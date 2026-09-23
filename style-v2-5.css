@@ -2511,7 +2511,7 @@ kbd {
     font-size: 11px;
 }
 
-#page-clientes .clients-panel .clients-table { min-width: 1900px; table-layout: fixed; }
+#page-clientes .clients-panel .clients-table { min-width: 1200px; table-layout: fixed; }
 #page-clientes .clients-panel .clients-table th:nth-child(n) { width: 150px; }
 #page-clientes .clients-panel .clients-table th:first-child { width: 280px; }
 #page-clientes .clients-panel .clients-table th:nth-child(2) { width: 185px; }

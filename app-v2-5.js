@@ -349,11 +349,7 @@ const CONFIGURACAO_TABELAS = {
             {campo: "faturas", tipo: "numero", placeholder: "Filtrar nº"},
             {campo: "dentroPrazo", tipo: "numero", placeholder: "Filtrar valor/nº"},
             {campo: "vencidas", tipo: "numero", placeholder: "Filtrar valor/nº"},
-            {campo: "adiantamentos", tipo: "numero", placeholder: "Filtrar valor"},
-            {campo: "notasCredito", tipo: "numero", placeholder: "Filtrar valor"},
-            {campo: "outrosCreditos", tipo: "numero", placeholder: "Filtrar valor"},
-            {campo: "valorPendente", tipo: "numero", placeholder: "Filtrar valor"},
-            {campo: "saldoLiquido", tipo: "numero", placeholder: "Filtrar valor"}
+            {campo: "valorPendente", tipo: "numero", placeholder: "Filtrar valor"}
         ]
     },
     contencioso: {
@@ -3524,67 +3520,7 @@ function htmlTabelaCreditos(creditos, origem, comDetalhe) {
 }
 
 function renderizarPaineisCreditos() {
-    [
-        ["page-dashboard", "global", DATA.faturas.concat(DATA.contenciosoFaturas)],
-        ["page-clientes", "normal", DATA.faturas],
-        ["page-faturas", "normal", DATA.faturas],
-        ["page-contencioso", "contencioso", DATA.contenciosoFaturas],
-        ["page-meus-clientes", "meus", DATA.minhasFaturas]
-    ].forEach(function(config) {
-        const pagina = document.getElementById(config[0]);
-        if (!pagina) return;
-        let painel = pagina.querySelector(".credits-panel");
-        if (!painel) {
-            painel = document.createElement("section");
-            painel.className = "panel credits-panel";
-            const ancora = pagina.querySelector(".executive-status-grid, .page-heading");
-            if (ancora) ancora.after(painel); else pagina.appendChild(painel);
-        }
-        painel.hidden = !DATA.creditosDisponiveis;
-        if (!DATA.creditosDisponiveis) return;
-        const creditos = obterCreditosOrigem(config[1]);
-        const saldos = resumirSaldosCreditos(config[2], creditos);
-        painel.innerHTML = `<h3>Adiantamentos e créditos por aplicar</h3>
-            <div class="credits-summary">${htmlResumoCreditos(saldos)}</div>
-            <p class="credits-explanation">Saldo líquido = faturas pendentes (${formatarMoeda(saldos.bruto)}) − créditos (${formatarMoeda(saldos.totalCreditos)}).
-            Os créditos não reduzem as faturas vencidas nem são aplicados automaticamente. A contabilidade faz a aplicação e a próxima importação atualiza os saldos.</p>
-            <details><summary>Ver ${creditos.length} documento(s) de crédito</summary>${htmlTabelaCreditos(creditos, config[1], true)}</details>`;
-        let colunaOrdem = 4;
-        let direcao = -1;
-        function atualizarLinhas() {
-            const filtros = Array.from(painel.querySelectorAll("[data-credit-filter]"));
-            const linhas = creditos.filter(function(c) {
-                const valores = valoresLinhaCredito(c);
-                return filtros.every(function(input) {
-                    const coluna = Number(input.dataset.creditFilter);
-                    const texto = String(valores[coluna]) + (coluna === 4 ? " " + formatarMoeda(valores[coluna]) : "");
-                    return texto.toLocaleLowerCase("pt-PT").includes(input.value.trim().toLocaleLowerCase("pt-PT"));
-                });
-            }).sort(function(a,b) {
-                const va = valoresLinhaCredito(a)[colunaOrdem];
-                const vb = valoresLinhaCredito(b)[colunaOrdem];
-                if (colunaOrdem === 4) return (va-vb)*direcao;
-                if (colunaOrdem === 2) return ((converterDataFrontend(va)?.getTime() || 0) - (converterDataFrontend(vb)?.getTime() || 0))*direcao;
-                return String(va).localeCompare(String(vb), "pt-PT", {numeric:true})*direcao;
-            });
-            painel.querySelector("tbody").innerHTML = htmlLinhasCreditos(linhas, config[1], true);
-        }
-        painel.oninput = function(evento) { if (evento.target.matches("[data-credit-filter]")) atualizarLinhas(); };
-        painel.onclick = function(evento) {
-            const detalhe = evento.target.closest("[data-credit-client]");
-            if (detalhe) abrirDetalheCliente(detalhe.dataset.creditClient, detalhe.dataset.creditOrigin);
-            const ordem = evento.target.closest("[data-credit-sort]");
-            if (ordem) {
-                const coluna = Number(ordem.dataset.creditSort);
-                direcao = colunaOrdem === coluna ? -direcao : 1;
-                colunaOrdem = coluna;
-                painel.querySelectorAll("[data-credit-sort]").forEach(function(b) { b.parentElement.removeAttribute("aria-sort"); });
-                ordem.parentElement.setAttribute("aria-sort", direcao === 1 ? "ascending" : "descending");
-                atualizarLinhas();
-            }
-        };
-        atualizarLinhas();
-    });
+    document.querySelectorAll('.credits-panel').forEach(p => p.remove());
 }
 
 function faturaComSaldoPositivo(fatura) {
@@ -3594,44 +3530,24 @@ function faturaComSaldoPositivo(fatura) {
 
 
 function decomporDashboardAutoritativo(resumo, faturasNormais, faturasContencioso) {
-    const vistos = new Set();
-    const clientes = new Set();
-    const resultado = {
-        totalAutoritativo: 0, totalFaturasAutoritativo: 0,
-        totalClientes: 0, valorTotal: 0,
-        vencidas: {valorPendente: 0, totalFaturas: 0},
-        dentroPrazo: {valorPendente: 0, totalFaturas: 0},
-        contencioso: {valorPendente: 0, totalFaturas: 0}
-    };
-    function acumular(faturas, legal) {
-        (Array.isArray(faturas) ? faturas : []).filter(faturaComSaldoPositivo).forEach(function(fatura) {
-            const chave = String(fatura.idFatura || [
-                fatura.numeroCliente, fatura.documento, fatura.numeroDocumento,
-                fatura.prt, fatura.dataVencimento
-            ].join("|"));
-            if (vistos.has(chave)) return;
-            vistos.add(chave);
-            clientes.add(String(fatura.numeroCliente || fatura.nome || ""));
-            const categoria = legal ? "contencioso" :
-                obterEstadoFaturaFrontend(fatura) === "VENCIDA" ? "vencidas" : "dentroPrazo";
-            const centimos = Math.round(Number(fatura.valorPendente) * 100);
-            resultado[categoria].valorPendente += centimos;
-            resultado[categoria].totalFaturas++;
-            resultado.totalFaturasAutoritativo++;
-            resultado.valorTotal += Number(fatura.valorTotal || 0);
+    const grupos = construirResumoClientesLiquido(faturasNormais, obterCreditosOrigem('normal'), false)
+        .concat(construirResumoClientesLiquido(faturasContencioso, obterCreditosOrigem('contencioso'), true));
+    const liquido = {totalAutoritativo: 0, totalFaturasAutoritativo: 0, totalClientes: grupos.length, valorTotal: 0,
+        vencidas:{valorPendente:0,totalFaturas:0}, dentroPrazo:{valorPendente:0,totalFaturas:0}, contencioso:{valorPendente:0,totalFaturas:0}};
+    grupos.forEach(c => {
+        liquido.totalAutoritativo += Math.round(c.valorPendente * 100);
+        liquido.totalFaturasAutoritativo += c.totalFaturas;
+        c.faturas.forEach(f => liquido.valorTotal += Number(f.valorTotal || 0));
+        ['vencidas','dentroPrazo','contencioso'].forEach(k => {
+            liquido[k].valorPendente += Math.round(c[k].valorPendente * 100);
+            liquido[k].totalFaturas += c[k].totalFaturas;
         });
-    }
-    // Soma direta dos documentos positivos; contencioso tem prioridade.
-    acumular(faturasContencioso, true);
-    acumular(faturasNormais, false);
-    ["vencidas", "dentroPrazo", "contencioso"].forEach(function(categoria) {
-        resultado.totalAutoritativo += resultado[categoria].valorPendente;
-        resultado[categoria].valorPendente /= 100;
     });
-    resultado.totalAutoritativo /= 100;
-    resultado.totalClientes = clientes.size;
-    return resultado;
+    liquido.totalAutoritativo /= 100;
+    ['vencidas','dentroPrazo','contencioso'].forEach(k => liquido[k].valorPendente /= 100);
+    return liquido;
 }
+
 
 
 function obterDistribuicaoMonetariaDashboard(resumo) {
@@ -3939,7 +3855,7 @@ function renderizarTabelaFaturas() {
 }
 
 
-function construirResumoClientes(faturasOrigem) {
+function construirResumoClientesBruto(faturasOrigem) {
     const mapa = new Map();
 
     const faturas = Array.isArray(faturasOrigem) ? faturasOrigem : DATA.faturas;
@@ -4009,13 +3925,24 @@ function construirResumoClientes(faturasOrigem) {
 function renderizarContencioso() {
     if (!ELEMENTOS.contenciosoTableBody) return;
 
-    const clientes = construirResumoClientes(DATA.contenciosoFaturas);
+    const clientes = construirResumoClientes(DATA.contenciosoFaturas).map(c => {
+        // Mantém pesquisa por prazo no menu Contencioso, sem duplicar a categoria no dashboard.
+        const bruto = construirResumoClientesBruto(c.faturas)[0];
+        if (bruto) {
+            const creditos = Math.round((c.valorPendenteBruto-c.valorPendente)*100);
+            const vencido = Math.round(bruto.vencidas.valorPendente*100);
+            const abate = Math.min(vencido,creditos);
+            c.vencidas = {...bruto.vencidas,valorPendente:(vencido-abate)/100};
+            c.dentroPrazo = {...bruto.dentroPrazo,valorPendente:(Math.round(bruto.dentroPrazo.valorPendente*100)-(creditos-abate))/100};
+        }
+        return c;
+    });
     const totalFaturas = DATA.contenciosoFaturas.length;
     const vencidas = DATA.contenciosoFaturas.filter(function(fatura) {
         return obterEstadoFaturaFrontend(fatura) === "VENCIDA";
     }).length;
-    const valorTotal = DATA.contenciosoFaturas.reduce(function(total, fatura) {
-        return total + Number(fatura.valorPendente || 0);
+    const valorTotal = clientes.reduce(function(total, cliente) {
+        return total + Number(cliente.valorPendente || 0);
     }, 0);
 
     ELEMENTOS.contenciosoTotalClientes.textContent = formatarNumero(clientes.length);
@@ -4077,15 +4004,22 @@ function renderizarContencioso() {
 }
 
 
-function construirResumoClientesComCreditos() {
-    const mapa = new Map(construirResumoClientes().map(c => [c.chave, c]));
+function construirResumoClientes(faturasOrigem) {
+    const origem = faturasOrigem === DATA.contenciosoFaturas ? 'contencioso' : 'normal';
+    return construirResumoClientesLiquido(faturasOrigem || DATA.faturas, obterCreditosOrigem(origem), origem === 'contencioso');
+}
+
+function construirResumoClientesComCreditos() { return construirResumoClientes(); }
+
+function construirResumoClientesLiquido(faturas, creditos, legal) {
+    const mapa = new Map(construirResumoClientesBruto(faturas).map(c => [c.chave, c]));
     const porCliente = new Map();
-    obterCreditosOrigem("normal").filter(creditoComSaldoNegativo).forEach(c => {
+    creditos.filter(creditoComSaldoNegativo).forEach(c => {
         const chave = chaveClienteCredito(c);
         if (!mapa.has(chave)) mapa.set(chave, {
             chave, numeroCliente: c.numeroCliente, nome: c.nome,
             vendedorId: c.vendedorId, vendedorNome: c.vendedorNome, seguroCredito: c.seguroCredito,
-            totalFaturas: 0, valorPendente: 0,
+            totalFaturas: 0, valorPendente: 0, faturas: [],
             dentroPrazo: {totalFaturas: 0, valorPendente: 0},
             vencidas: {totalFaturas: 0, valorPendente: 0},
             contencioso: {totalFaturas: 0, valorPendente: 0}
@@ -4095,10 +4029,24 @@ function construirResumoClientesComCreditos() {
     });
     return Array.from(mapa.values()).map(c => {
         const saldos = resumirSaldosCreditos([], porCliente.get(c.chave) || []);
+        const bruto = Math.round(c.valorPendente * 100);
+        const credito = Math.round(saldos.totalCreditos * 100);
+        if (legal) {
+            c.contencioso = {valorPendente:(bruto-credito)/100,totalFaturas:c.totalFaturas};
+            c.vencidas = {valorPendente:0,totalFaturas:0};
+            c.dentroPrazo = {valorPendente:0,totalFaturas:0};
+        } else {
+            const vencido = Math.round(c.vencidas.valorPendente * 100);
+            const abatimento = Math.min(vencido, credito);
+            c.vencidas.valorPendente = (vencido-abatimento)/100;
+            c.dentroPrazo.valorPendente = (Math.round(c.dentroPrazo.valorPendente*100)-(credito-abatimento))/100;
+        }
+        c.valorPendenteBruto = bruto / 100;
+        c.valorPendente = (bruto-credito)/100;
         return Object.assign(c, {
             adiantamentos: saldos.adiantamentos, notasCredito: saldos.notasCredito,
             outrosCreditos: saldos.outrosCreditos,
-            saldoLiquido: (Math.round(c.valorPendente * 100) - Math.round(saldos.totalCreditos * 100)) / 100
+            saldoLiquido: c.valorPendente
         });
     }).sort((a,b) => b.valorPendente - a.valorPendente);
 }
@@ -4184,7 +4132,7 @@ function renderizarClientes() {
     if (filtrados.length === 0) {
         ELEMENTOS.clientsTableBody.innerHTML = `
             <tr>
-                <td colspan="11">
+                <td colspan="7">
                     <div class="table-loading-state">
                         Não foram encontrados clientes com estes filtros.
                     </div>
@@ -4233,15 +4181,11 @@ function renderizarClientes() {
                         <small>${formatarNumero(cliente.vencidas.totalFaturas)} faturas</small>
                     </td>
 
-                    <td class="align-right"><strong>${formatarMoeda(cliente.adiantamentos)}</strong></td>
-                    <td class="align-right"><strong>${formatarMoeda(cliente.notasCredito)}</strong></td>
-                    <td class="align-right"><strong>${formatarMoeda(cliente.outrosCreditos)}</strong></td>
                     <td class="align-right">
                         <strong class="client-total-value">
                             ${formatarMoeda(cliente.valorPendente)}
                         </strong>
                     </td>
-                    <td class="align-right"><strong>${formatarMoeda(cliente.saldoLiquido)}</strong>${cliente.saldoLiquido < 0 ? '<small>Saldo a favor</small>' : ''}</td>
                     <td class="align-right">
                         <button
                             class="client-detail-btn"
@@ -4346,10 +4290,6 @@ function abrirDetalheCliente(chave, origem) {
         </article>
     `;
 
-    if (DATA.creditosDisponiveis) {
-        ELEMENTOS.clientDetailSummary.insertAdjacentHTML("beforeend",
-            htmlResumoCreditos(resumirSaldosCreditos(cliente.faturas, creditosCliente)));
-    }
     let detalheCreditos = document.getElementById("clientDetailCredits");
     if (!detalheCreditos) {
         detalheCreditos = document.createElement("section");
@@ -4359,7 +4299,7 @@ function abrirDetalheCliente(chave, origem) {
     }
     detalheCreditos.hidden = !creditosCliente.length;
     detalheCreditos.innerHTML = creditosCliente.length
-        ? "<h4>Adiantamentos e créditos por aplicar</h4><p>Não descontados das faturas acima. Atualizados pela importação do ficheiro da contabilidade.</p>" + htmlTabelaCreditos(creditosCliente, origem, false)
+        ? "<h4>Adiantamentos e notas de crédito — documentos importados</h4><p>Já descontados dos totais acima: primeiro das vencidas, depois de dentro do prazo. No contencioso, descontados nessa carteira. As faturas abaixo mantêm os valores originais; não existe liquidação contabilística automática.</p>" + htmlTabelaCreditos(creditosCliente, origem, false)
         : "";
 
     ELEMENTOS.clientDetailInvoices.innerHTML =
@@ -4563,8 +4503,8 @@ function renderizarMinhasFaturas() {
     const vencidas = todas.filter(function(fatura) {
         return obterEstadoFaturaFrontend(fatura) === "VENCIDA";
     });
-    const valor = todas.reduce(function(total, fatura) {
-        return total + Number(fatura.valorPendente || 0);
+    const valor = clientes.reduce(function(total, cliente) {
+        return total + Number(cliente.valorPendente || 0);
     }, 0);
 
     ELEMENTOS.myClientsTotal.textContent = formatarNumero(clientes.length);
